@@ -10,41 +10,37 @@ import (
 	"golang.org/x/net/html"
 )
 
-type Marshaller interface {
-	Marshal(i interface{}) error
+type Encoder interface {
+	Encode(i interface{}) error
 }
 
-type htmlMarshaller struct {
+type htmlEncoder struct {
 	n *html.Node
 	w io.Writer
 
 	decorator Decorator
 }
 
-func NewHTMLMarshaller(w io.Writer, decorator Decorator) Marshaller {
+func NewEncoder(w io.Writer, decorator Decorator) Encoder {
 	n := &html.Node{
 		Type: html.ElementNode,
-		Data: "form",
-		Attr: []html.Attribute{
-			{
-				Key: "method",
-				Val: "POST",
-			},
-		},
+		Data: "div",
 	}
 
 	if decorator == nil {
 		decorator = nilDecorator{}
 	}
 
-	return &htmlMarshaller{
+	decorator.Form(n)
+
+	return &htmlEncoder{
 		w:         w,
 		n:         n,
 		decorator: decorator,
 	}
 }
 
-func (h *htmlMarshaller) Marshal(i interface{}) error {
+func (h *htmlEncoder) Encode(i interface{}) error {
 	v := reflect.ValueOf(i)
 
 	h.recurse(v, v.Type().String(), StructField{}, h.n)
@@ -52,24 +48,31 @@ func (h *htmlMarshaller) Marshal(i interface{}) error {
 	return html.Render(h.w, h.n)
 }
 
-func (h *htmlMarshaller) recurse(v reflect.Value, key string, field StructField, parent *html.Node) {
-	switch v.Interface().(type) {
-	case time.Time, Select, Radio:
-		h.buildField(v, key, field, parent)
-		return
-	}
-
+func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) {
 	switch v.Kind() {
 	case reflect.Ptr:
+		if v.IsNil() && v.CanAddr() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+
 		h.recurse(v.Elem(), key, field, parent)
 		return
 	case reflect.Struct:
-		fieldSet := h.buildFieldSet(v, field, parent)
+		switch v.Interface().(type) {
+		case time.Time, Select, Radio:
+			h.buildField(v, key, field, parent)
+			return
+		}
+
+		if !field.Anonymous {
+			// anonymous structs use their parent's fieldset
+			parent = h.buildFieldSet(v, field, parent)
+		}
 
 		for i := 0; i < v.NumField(); i++ {
 			structField := v.Type().Field(i)
 
-			h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, StructField{structField}, fieldSet)
+			h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, StructField{structField}, parent)
 		}
 		return
 	case reflect.Map:
@@ -97,7 +100,7 @@ func (h *htmlMarshaller) recurse(v reflect.Value, key string, field StructField,
 	}
 }
 
-func (h *htmlMarshaller) buildFieldSet(v reflect.Value, field StructField, parent *html.Node) *html.Node {
+func (h *htmlEncoder) buildFieldSet(v reflect.Value, field StructField, parent *html.Node) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "fieldset",
@@ -128,7 +131,11 @@ func (h *htmlMarshaller) buildFieldSet(v reflect.Value, field StructField, paren
 	return n
 }
 
-func (h *htmlMarshaller) buildField(v reflect.Value, key string, field StructField, parent *html.Node) {
+func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) {
+	if !v.IsValid() || field.Hidden() {
+		return
+	}
+
 	rowElement := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -162,13 +169,14 @@ func (h *htmlMarshaller) buildField(v reflect.Value, key string, field StructFie
 	case reflect.Bool:
 		h.buildBoolField(v, key, rowElement)
 		return
-
-	default:
-		panic("form: unknown element kind: " + v.Kind().String())
 	}
+
+	panic("formulate: unknown element kind: " + v.Kind().String())
 }
 
-func (h *htmlMarshaller) buildTimeField(t time.Time, key string, parent *html.Node, field StructField) {
+const timeFormat = "2006-01-02T15:04"
+
+func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -187,7 +195,7 @@ func (h *htmlMarshaller) buildTimeField(t time.Time, key string, parent *html.No
 			},
 			{
 				Key: "value",
-				Val: t.Format("2006-01-02T15:04"),
+				Val: t.Format(timeFormat),
 			},
 		},
 	}
@@ -211,7 +219,7 @@ func (h *htmlMarshaller) buildTimeField(t time.Time, key string, parent *html.No
 	parent.AppendChild(n)
 }
 
-func (h *htmlMarshaller) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -261,7 +269,7 @@ func (h *htmlMarshaller) buildNumberField(v reflect.Value, key string, parent *h
 	parent.AppendChild(n)
 }
 
-func (h *htmlMarshaller) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	var n *html.Node
 
 	if field.Elem() == "textarea" {
@@ -331,7 +339,7 @@ func (h *htmlMarshaller) buildStringField(v reflect.Value, key string, parent *h
 	parent.AppendChild(n)
 }
 
-func (h *htmlMarshaller) buildBoolField(v reflect.Value, key string, parent *html.Node) {
+func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node) {
 	val := "0"
 
 	if v.Bool() {
@@ -366,7 +374,7 @@ func (h *htmlMarshaller) buildBoolField(v reflect.Value, key string, parent *htm
 	parent.AppendChild(n)
 }
 
-func (h *htmlMarshaller) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
+func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
 	sel := &html.Node{
 		Type: html.ElementNode,
 		Data: "select",
@@ -421,7 +429,7 @@ func (h *htmlMarshaller) buildSelectField(s Select, key string, parent *html.Nod
 	parent.AppendChild(sel)
 }
 
-func (h *htmlMarshaller) buildRadioButtons(r Radio, key string, parent *html.Node, field StructField) {
+func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, field StructField) {
 	elemName := h.formElementName(key)
 
 	div := &html.Node{
@@ -472,6 +480,12 @@ func (h *htmlMarshaller) buildRadioButtons(r Radio, key string, parent *html.Nod
 		label := &html.Node{
 			Type: html.ElementNode,
 			Data: "label",
+			Attr: []html.Attribute{
+				{
+					Key: "for",
+					Val: id,
+				},
+			},
 		}
 
 		label.AppendChild(&html.Node{
@@ -489,11 +503,11 @@ func (h *htmlMarshaller) buildRadioButtons(r Radio, key string, parent *html.Nod
 	parent.AppendChild(div)
 }
 
-func (h *htmlMarshaller) formElementName(label string) string {
-	return strings.Replace(label, ".", "_", -1)
+func (h *htmlEncoder) formElementName(label string) string {
+	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
 }
 
-func (h *htmlMarshaller) buildLabel(label string, parent *html.Node, field StructField) {
+func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "label",

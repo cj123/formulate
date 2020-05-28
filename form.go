@@ -21,6 +21,12 @@ func (sf StructField) GetName() string {
 	return camelCase(sf.Name)
 }
 
+func (sf StructField) Hidden() bool {
+	show := sf.Tag.Get("show")
+
+	return show == "-"
+}
+
 func camelCase(s string) string {
 	return strings.Join(camelcase.Split(s), " ")
 }

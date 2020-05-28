@@ -1,4 +1,4 @@
-form
-====
+formulate
+=========
 
-package form (un-)marshals go types into html forms.
+a (badly named, incomplete) HTML form builder and HTTP request to struct parser 

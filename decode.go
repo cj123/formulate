@@ -1,0 +1,121 @@
+package formulate
+
+import (
+	"net/url"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Decoder interface {
+	Decode(form url.Values, val interface{}) error
+}
+
+type httpDecoder struct {
+}
+
+func NewDecoder() Decoder {
+	return &httpDecoder{}
+}
+
+func (h *httpDecoder) Decode(form url.Values, data interface{}) error {
+	val := reflect.ValueOf(data)
+
+	if val.Kind() != reflect.Ptr {
+		panic("formulate: decode target must be pointer")
+	}
+
+	for name, vals := range form {
+		if err := h.assignFieldValues(val.Elem(), name, vals); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+const fieldSeparator = "."
+
+func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, formValues []string) error {
+	parts := strings.Split(formName, fieldSeparator)
+
+	if !val.IsValid() || !val.CanSet() || len(formValues) == 0 {
+		return nil
+	}
+
+	field := val.FieldByName(parts[0])
+
+	if !field.IsValid() || !field.CanSet() || len(formValues) == 0 {
+		return nil
+	}
+
+	if field.Kind() == reflect.Ptr {
+		if field.IsNil() {
+			v := reflect.New(field.Type().Elem())
+
+			field.Set(v)
+		}
+
+		field = field.Elem()
+	}
+
+	formValue := formValues[0]
+
+	switch field.Interface().(type) {
+	case time.Time:
+		t, err := time.Parse(timeFormat, formValue)
+
+		if err != nil {
+			return err
+		}
+
+		field.Set(reflect.ValueOf(t))
+
+		return nil
+	}
+
+	switch field.Kind() {
+	case reflect.Struct:
+		return h.assignFieldValues(field, strings.Join(parts[1:], fieldSeparator), formValues)
+	case reflect.String:
+		field.SetString(formValue)
+		return nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		i, err := strconv.ParseInt(formValue, 10, 0)
+
+		if err != nil {
+			return err
+		}
+
+		field.SetInt(i)
+		return nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		i, err := strconv.ParseUint(formValue, 10, 0)
+
+		if err != nil {
+			return err
+		}
+
+		field.SetUint(i)
+		return nil
+	case reflect.Bool:
+		if formValue == "on" {
+			field.SetBool(true)
+		} else {
+			i, err := strconv.ParseInt(formValue, 10, 0)
+
+			if err != nil {
+				return err
+			}
+
+			field.SetBool(i == 1)
+		}
+
+		return nil
+	default:
+		panic("formulate: unknown kind: " + field.Kind().String())
+	}
+
+	return nil
+}

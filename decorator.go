@@ -3,6 +3,7 @@ package formulate
 import "golang.org/x/net/html"
 
 type Decorator interface {
+	Form(n *html.Node)
 	Fieldset(n *html.Node)
 	Row(n *html.Node)
 	TextField(n *html.Node)
@@ -16,6 +17,9 @@ type Decorator interface {
 }
 
 type nilDecorator struct{}
+
+func (d nilDecorator) Form(n *html.Node) {
+}
 
 func (d nilDecorator) RadioButton(n *html.Node) {
 
@@ -57,61 +61,64 @@ func (d nilDecorator) TextareaField(n *html.Node) {
 
 }
 
-type bootstrapDecorator struct{}
+type BootstrapDecorator struct{}
 
-func (b bootstrapDecorator) RadioButton(n *html.Node) {
-
-}
-
-func (b bootstrapDecorator) Fieldset(n *html.Node) {
+func (b BootstrapDecorator) Form(n *html.Node) {
 
 }
 
-func (b bootstrapDecorator) Row(n *html.Node) {
+func (b BootstrapDecorator) RadioButton(n *html.Node) {
+
+}
+
+func (b BootstrapDecorator) Fieldset(n *html.Node) {
+
+}
+
+func (b BootstrapDecorator) Row(n *html.Node) {
 	AppendClass(n, "row", "form-group")
 }
 
-func (b bootstrapDecorator) TextField(n *html.Node) {
+func (b BootstrapDecorator) TextField(n *html.Node) {
 	b.col8(n)
 	b.formControl(n)
 }
 
-func (b bootstrapDecorator) Label(n *html.Node) {
+func (b BootstrapDecorator) Label(n *html.Node) {
 	b.col4(n)
 }
 
-func (b bootstrapDecorator) col4(n *html.Node) {
+func (b BootstrapDecorator) col4(n *html.Node) {
 	AppendClass(n, "col-md-4 col-12")
 }
 
-func (b bootstrapDecorator) col8(n *html.Node) {
+func (b BootstrapDecorator) col8(n *html.Node) {
 	AppendClass(n, "col-md-8 col-12")
 }
 
-func (b bootstrapDecorator) formControl(n *html.Node) {
+func (b BootstrapDecorator) formControl(n *html.Node) {
 	AppendClass(n, "form-control")
 }
 
-func (b bootstrapDecorator) NumberField(n *html.Node) {
+func (b BootstrapDecorator) NumberField(n *html.Node) {
 	b.col8(n)
 	b.formControl(n)
 }
 
-func (b bootstrapDecorator) CheckboxField(n *html.Node) {
-	b.col8(n)
+func (b BootstrapDecorator) CheckboxField(n *html.Node) {
 }
 
-func (b bootstrapDecorator) TextareaField(n *html.Node) {
-	b.col8(n)
-	b.formControl(n)
-}
-
-func (b bootstrapDecorator) TimeField(n *html.Node) {
+func (b BootstrapDecorator) TextareaField(n *html.Node) {
 	b.col8(n)
 	b.formControl(n)
 }
 
-func (b bootstrapDecorator) SelectField(n *html.Node) {
+func (b BootstrapDecorator) TimeField(n *html.Node) {
+	b.col8(n)
+	b.formControl(n)
+}
+
+func (b BootstrapDecorator) SelectField(n *html.Node) {
 	b.col8(n)
 	b.formControl(n)
 }

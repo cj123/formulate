@@ -24,12 +24,19 @@ type YourDetails struct {
 }
 
 type Address struct {
+	EmbeddedStruct
+
 	HouseName       string
 	AddressLine1    string
 	AddressLine2    string
 	Postcode        string
 	TelephoneNumber Tel
 	Country         string
+}
+
+type EmbeddedStruct struct {
+	Variable string
+	Type     uint32
 }
 
 type Pet string
@@ -95,11 +102,11 @@ func (c ContactMethod) RadioOptions() []Option {
 	}
 }
 
-func TestHtmlMarshaller_Marshal(t *testing.T) {
+func TestHtmlEncoder_Encode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	m := NewHTMLMarshaller(buf, bootstrapDecorator{})
+	m := NewEncoder(buf, BootstrapDecorator{})
 
-	if err := m.Marshal(YourDetails{
+	if err := m.Encode(&YourDetails{
 		Name:           "Jane Doe",
 		Age:            40,
 		ConfirmedEmail: true,
@@ -118,6 +125,10 @@ func TestHtmlMarshaller_Marshal(t *testing.T) {
 		},
 	}); err != nil {
 		t.Error(err)
+	}
+
+	if err := m.Encode(&YourDetails{}); err != nil {
+		panic(err)
 	}
 
 	fmt.Println(gohtml.Format(buf.String()))
