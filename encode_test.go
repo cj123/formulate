@@ -51,25 +51,21 @@ func (p Pet) SelectOptions() []Option {
 			Value:    "dog",
 			Label:    "Dog",
 			Disabled: false,
-			Checked:  p == "dog",
 		},
 		{
 			Value:    "cat",
 			Label:    "Cat",
 			Disabled: false,
-			Checked:  p == "cat",
 		},
 		{
 			Value:    "hamster",
 			Label:    "Hamster",
 			Disabled: true,
-			Checked:  p == "hamster",
 		},
 		{
 			Value:    "ferret",
 			Label:    "Ferret",
 			Disabled: false,
-			Checked:  p == "ferret",
 		},
 	}
 }
@@ -79,25 +75,21 @@ type ContactMethod string
 func (c ContactMethod) RadioOptions() []Option {
 	return []Option{
 		{
-			Value:   "phone",
-			Label:   "Phone",
-			Checked: c == "phone",
+			Value: "phone",
+			Label: "Phone",
 		},
 		{
-			Value:   "email",
-			Label:   "Email",
-			Checked: c == "email",
+			Value: "email",
+			Label: "Email",
 		},
 		{
-			Value:   "post",
-			Label:   "Post",
-			Checked: c == "post",
+			Value: "post",
+			Label: "Post",
 		},
 		{
 			Value:    "carrier_pigeon",
 			Label:    "Carrier Pigeon",
 			Disabled: true,
-			Checked:  c == "carrier_pigeon",
 		},
 	}
 }

@@ -412,7 +412,15 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 			o.Attr = append(o.Attr, html.Attribute{Key: "disabled"})
 		}
 
-		if opt.Checked {
+		checked := false
+
+		if opt.Checked == nil {
+			checked = opt.Value == s
+		} else {
+			checked = bool(*opt.Checked)
+		}
+
+		if checked {
 			o.Attr = append(o.Attr, html.Attribute{Key: "selected"})
 		}
 
@@ -473,7 +481,15 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 			radio.Attr = append(radio.Attr, html.Attribute{Key: "disabled"})
 		}
 
-		if opt.Checked {
+		checked := false
+
+		if opt.Checked == nil {
+			checked = opt.Value == r
+		} else {
+			checked = bool(*opt.Checked)
+		}
+
+		if checked {
 			radio.Attr = append(radio.Attr, html.Attribute{Key: "checked"})
 		}
 

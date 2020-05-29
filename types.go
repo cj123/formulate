@@ -8,7 +8,7 @@ type (
 )
 
 type Select interface {
-	// Multiple indicates whether multiple options can be selected at once.
+	// SelectMultiple indicates whether multiple options can be selected at once.
 	SelectMultiple() bool
 
 	// SelectOptions are the available options
@@ -20,7 +20,15 @@ type Option struct {
 	Label string
 
 	Disabled bool
-	Checked  bool
+	Checked  *Condition
+}
+
+type Condition bool
+
+func NewCondition(b bool) *Condition {
+	c := Condition(b)
+
+	return &c
 }
 
 type Radio interface {
