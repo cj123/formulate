@@ -1,5 +1,10 @@
 package formulate
 
+import (
+	"golang.org/x/net/html"
+	"net/url"
+)
+
 type (
 	Password string
 	Email    string
@@ -33,4 +38,18 @@ func NewCondition(b bool) *Condition {
 
 type Radio interface {
 	RadioOptions() []Option
+}
+
+type CustomEncoder interface {
+	BuildFormElement(key string, parent *html.Node, field StructField)
+}
+
+type CustomDecoder interface {
+	DecodeFormValue(form url.Values, name string, values []string) error
+}
+
+type BoolNumber int
+
+func (bn BoolNumber) Bool() bool {
+	return bn == 1
 }

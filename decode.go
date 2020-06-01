@@ -9,24 +9,27 @@ import (
 )
 
 type Decoder interface {
-	Decode(form url.Values, val interface{}) error
+	Decode(val interface{}) error
 }
 
 type httpDecoder struct {
+	form url.Values
 }
 
-func NewDecoder() Decoder {
-	return &httpDecoder{}
+func NewDecoder(form url.Values) Decoder {
+	return &httpDecoder{
+		form: form,
+	}
 }
 
-func (h *httpDecoder) Decode(form url.Values, data interface{}) error {
+func (h *httpDecoder) Decode(data interface{}) error {
 	val := reflect.ValueOf(data)
 
 	if val.Kind() != reflect.Ptr {
 		panic("formulate: decode target must be pointer")
 	}
 
-	for name, vals := range form {
+	for name, vals := range h.form {
 		if err := h.assignFieldValues(val.Elem(), name, vals); err != nil {
 			return err
 		}
@@ -50,19 +53,11 @@ func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, form
 		return nil
 	}
 
-	if field.Kind() == reflect.Ptr {
-		if field.IsNil() {
-			v := reflect.New(field.Type().Elem())
-
-			field.Set(v)
-		}
-
-		field = field.Elem()
-	}
-
 	formValue := formValues[0]
 
-	switch field.Interface().(type) {
+	switch a := field.Interface().(type) {
+	case CustomDecoder:
+		return a.DecodeFormValue(h.form, formName, formValues)
 	case time.Time:
 		t, err := time.Parse(timeFormat, formValue)
 
@@ -73,6 +68,16 @@ func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, form
 		field.Set(reflect.ValueOf(t))
 
 		return nil
+	}
+
+	if field.Kind() == reflect.Ptr {
+		if field.IsNil() {
+			v := reflect.New(field.Type().Elem())
+
+			field.Set(v)
+		}
+
+		field = field.Elem()
 	}
 
 	switch field.Kind() {

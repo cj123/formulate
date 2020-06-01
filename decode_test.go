@@ -31,7 +31,7 @@ It spans multiple lines`},
 
 	var details YourDetails
 
-	if err := NewDecoder().Decode(vals, &details); err != nil {
+	if err := NewDecoder(vals).Decode(&details); err != nil {
 		t.Error(err)
 	}
 

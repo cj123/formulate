@@ -8,6 +8,7 @@ type Decorator interface {
 	Row(n *html.Node)
 	TextField(n *html.Node)
 	Label(n *html.Node)
+	HelpText(n *html.Node)
 	NumberField(n *html.Node)
 	CheckboxField(n *html.Node)
 	TextareaField(n *html.Node)
@@ -17,6 +18,10 @@ type Decorator interface {
 }
 
 type nilDecorator struct{}
+
+func (d nilDecorator) HelpText(n *html.Node) {
+
+}
 
 func (d nilDecorator) Form(n *html.Node) {
 }
@@ -63,6 +68,13 @@ func (d nilDecorator) TextareaField(n *html.Node) {
 
 type BootstrapDecorator struct{}
 
+func (b BootstrapDecorator) HelpText(n *html.Node) {
+	n.Data = "small"
+	b.col8(n)
+	b.offset4(n)
+	AppendClass(n, "pl-0", "pr-0")
+}
+
 func (b BootstrapDecorator) Form(n *html.Node) {
 
 }
@@ -94,6 +106,10 @@ func (b BootstrapDecorator) col4(n *html.Node) {
 
 func (b BootstrapDecorator) col8(n *html.Node) {
 	AppendClass(n, "col-md-8 col-12")
+}
+
+func (b BootstrapDecorator) offset4(n *html.Node) {
+	AppendClass(n, "offset-md-4")
 }
 
 func (b BootstrapDecorator) formControl(n *html.Node) {

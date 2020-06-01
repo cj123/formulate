@@ -21,8 +21,16 @@ func (sf StructField) GetName() string {
 	return camelCase(sf.Name)
 }
 
-func (sf StructField) Hidden() bool {
+func (sf StructField) GetHelpText() string {
+	return sf.Tag.Get("help")
+}
+
+func (sf StructField) Hidden(showConditions map[string]ShowConditionFunc) bool {
 	show := sf.Tag.Get("show")
+
+	if conditionFunc, ok := showConditions[show]; ok {
+		return !conditionFunc()
+	}
 
 	return show == "-"
 }
