@@ -3,6 +3,7 @@ package formulate
 import (
 	"golang.org/x/net/html"
 	"net/url"
+	"reflect"
 )
 
 type (
@@ -26,6 +27,7 @@ type Option struct {
 
 	Disabled bool
 	Checked  *Condition
+	Attr     []html.Attribute
 }
 
 type Condition bool
@@ -45,11 +47,21 @@ type CustomEncoder interface {
 }
 
 type CustomDecoder interface {
-	DecodeFormValue(form url.Values, name string, values []string) error
+	DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error)
 }
 
 type BoolNumber int
 
-func (bn BoolNumber) Bool() bool {
-	return bn == 1
+func (bn BoolNumber) DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error) {
+	val := values[0]
+
+	if val == "on" || val == "1" {
+		return reflect.ValueOf(BoolNumber(1)), nil
+	}
+
+	return reflect.ValueOf(BoolNumber(0)), nil
+}
+
+func (bn *BoolNumber) Bool() bool {
+	return *bn == 1
 }

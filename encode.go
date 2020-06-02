@@ -160,6 +160,8 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 		parent.AppendChild(rowElement)
 	}()
 
+	key = h.formElementName(key)
+
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
 		a.BuildFormElement(key, rowElement, field)
@@ -207,11 +209,11 @@ func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node,
 			},
 			{
 				Key: "name",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "id",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "value",
@@ -234,9 +236,8 @@ func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node,
 		})
 	}
 
-	h.decorator.NumberField(n)
-
 	parent.AppendChild(n)
+	h.decorator.NumberField(n)
 }
 
 func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
@@ -250,11 +251,11 @@ func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html
 			},
 			{
 				Key: "name",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "id",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "value",
@@ -284,9 +285,8 @@ func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html
 		})
 	}
 
-	h.decorator.NumberField(n)
-
 	parent.AppendChild(n)
+	h.decorator.NumberField(n)
 }
 
 func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
@@ -299,11 +299,11 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 			Attr: []html.Attribute{
 				{
 					Key: "name",
-					Val: h.formElementName(key),
+					Val: key,
 				},
 				{
 					Key: "id",
-					Val: h.formElementName(key),
+					Val: key,
 				},
 			},
 		}
@@ -313,6 +313,7 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 			Data: v.String(),
 		})
 
+		parent.AppendChild(n)
 		h.decorator.TextareaField(n)
 	} else {
 		typField := func() string {
@@ -340,11 +341,11 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 				},
 				{
 					Key: "name",
-					Val: h.formElementName(key),
+					Val: key,
 				},
 				{
 					Key: "id",
-					Val: h.formElementName(key),
+					Val: key,
 				},
 				{
 					Key: "value",
@@ -353,10 +354,9 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 			},
 		}
 
+		parent.AppendChild(n)
 		h.decorator.TextField(n)
 	}
-
-	parent.AppendChild(n)
 }
 
 func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node) {
@@ -370,11 +370,11 @@ func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.N
 			},
 			{
 				Key: "name",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "id",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 		},
 	}
@@ -393,9 +393,8 @@ func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.N
 		n.Attr = append(n.Attr, html.Attribute{Key: "checked", Val: "checked"})
 	}
 
-	h.decorator.CheckboxField(n)
-
 	parent.AppendChild(n)
+	h.decorator.CheckboxField(n)
 }
 
 func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
@@ -405,11 +404,11 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 		Attr: []html.Attribute{
 			{
 				Key: "name",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 			{
 				Key: "id",
-				Val: h.formElementName(key),
+				Val: key,
 			},
 		},
 	}
@@ -448,6 +447,8 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 			o.Attr = append(o.Attr, html.Attribute{Key: "selected"})
 		}
 
+		o.Attr = append(o.Attr, opt.Attr...)
+
 		o.AppendChild(&html.Node{
 			Type: html.TextNode,
 			Data: opt.Label,
@@ -456,27 +457,24 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 		sel.AppendChild(o)
 	}
 
-	h.decorator.SelectField(sel)
-
 	parent.AppendChild(sel)
+	h.decorator.SelectField(sel)
 }
 
 func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, field StructField) {
-	elemName := h.formElementName(key)
-
 	div := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
 		Attr: []html.Attribute{
 			{
 				Key: "id",
-				Val: elemName,
+				Val: key,
 			},
 		},
 	}
 
 	for i, opt := range r.RadioOptions() {
-		id := fmt.Sprintf("%s%d", elemName, i)
+		id := fmt.Sprintf("%s%d", key, i)
 
 		radio := &html.Node{
 			Type: html.ElementNode,
@@ -496,7 +494,7 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 				},
 				{
 					Key: "name",
-					Val: elemName,
+					Val: key,
 				},
 			},
 		}
@@ -504,6 +502,8 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 		if opt.Disabled {
 			radio.Attr = append(radio.Attr, html.Attribute{Key: "disabled"})
 		}
+
+		radio.Attr = append(radio.Attr, opt.Attr...)
 
 		checked := false
 
@@ -533,11 +533,11 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 			Data: opt.Label,
 		})
 
-		h.decorator.Label(label)
-		h.decorator.RadioButton(radio)
-
 		div.AppendChild(label)
 		div.AppendChild(radio)
+
+		h.decorator.Label(label)
+		h.decorator.RadioButton(radio)
 	}
 
 	parent.AppendChild(div)
@@ -554,12 +554,10 @@ func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructFi
 		Attr: []html.Attribute{
 			{
 				Key: "for",
-				Val: h.formElementName(label),
+				Val: label,
 			},
 		},
 	}
-
-	h.decorator.Label(n)
 
 	n.AppendChild(&html.Node{
 		Type: html.TextNode,
@@ -567,6 +565,7 @@ func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructFi
 	})
 
 	parent.AppendChild(n)
+	h.decorator.Label(n)
 }
 
 func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
@@ -575,12 +574,11 @@ func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field Struc
 		Data: "div",
 	}
 
-	h.decorator.HelpText(n)
-
 	n.AppendChild(&html.Node{
 		Type: html.TextNode,
 		Data: field.GetHelpText(),
 	})
 
 	parent.AppendChild(n)
+	h.decorator.HelpText(n)
 }

@@ -135,6 +135,21 @@ func (b BootstrapDecorator) TimeField(n *html.Node) {
 }
 
 func (b BootstrapDecorator) SelectField(n *html.Node) {
-	b.col8(n)
-	b.formControl(n)
+	if HasAttribute(n, "multiple") {
+		// reparent multiselect
+		x := &html.Node{
+			Type: html.ElementNode,
+			Data: "div",
+		}
+		b.col8(x)
+		AppendClass(x, "pl-0", "pr-0")
+
+		n.Parent.AppendChild(x)
+		n.Parent.RemoveChild(n)
+		b.formControl(n)
+		x.AppendChild(n)
+	} else {
+		b.formControl(n)
+		b.col8(n)
+	}
 }

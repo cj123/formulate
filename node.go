@@ -21,3 +21,13 @@ func AppendClass(n *html.Node, classes ...string) {
 		Val: class,
 	})
 }
+
+func HasAttribute(n *html.Node, attr string) bool {
+	for _, a := range n.Attr {
+		if a.Key == attr {
+			return true
+		}
+	}
+
+	return false
+}

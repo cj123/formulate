@@ -42,14 +42,9 @@ const fieldSeparator = "."
 
 func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, formValues []string) error {
 	parts := strings.Split(formName, fieldSeparator)
-
-	if !val.IsValid() || !val.CanSet() || len(formValues) == 0 {
-		return nil
-	}
-
 	field := val.FieldByName(parts[0])
 
-	if !field.IsValid() || !field.CanSet() || len(formValues) == 0 {
+	if !field.CanSet() || len(formValues) == 0 {
 		return nil
 	}
 
@@ -57,7 +52,15 @@ func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, form
 
 	switch a := field.Interface().(type) {
 	case CustomDecoder:
-		return a.DecodeFormValue(h.form, formName, formValues)
+		val, err := a.DecodeFormValue(h.form, formName, formValues)
+
+		if err != nil {
+			return err
+		}
+
+		field.Set(val)
+
+		return nil
 	case time.Time:
 		t, err := time.Parse(timeFormat, formValue)
 
@@ -119,7 +122,8 @@ func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, form
 
 		return nil
 	default:
-		panic("formulate: unknown kind: " + field.Kind().String())
+		// @TODO warning?
+		// panic("formulate: unknown kind: " + field.Kind().String())
 	}
 
 	return nil
