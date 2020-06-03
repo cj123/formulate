@@ -21,6 +21,8 @@ type YourDetails struct {
 	ContactMethod  ContactMethod
 
 	Address *Address
+
+	TestMap map[string]string
 }
 
 type Address struct {
@@ -114,6 +116,10 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 			Postcode:        "F4K3 T0WN",
 			TelephoneNumber: "012345678910",
 			Country:         "UK",
+		},
+		TestMap: map[string]string{
+			"Foo": "foo",
+			"Bar": "bar",
 		},
 	}); err != nil {
 		t.Error(err)

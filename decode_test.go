@@ -27,6 +27,7 @@ It spans multiple lines`},
 		"Address.TelephoneNumber":     {"012345678910"},
 		"Address.Country":             {"UK"},
 		"Address.EmbeddedStruct.Type": {"4838374"},
+		"TestMap":                     {`{"Foo": "Banana", "baz": "chocolate"}`},
 	}
 
 	var details YourDetails

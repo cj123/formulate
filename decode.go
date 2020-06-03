@@ -1,6 +1,7 @@
 package formulate
 
 import (
+	"encoding/json"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -120,6 +121,15 @@ func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, form
 			field.SetBool(i == 1)
 		}
 
+		return nil
+	case reflect.Map, reflect.Slice, reflect.Array:
+		i := reflect.New(field.Type())
+
+		if err := json.Unmarshal([]byte(formValue), i.Interface()); err != nil {
+			return err
+		}
+
+		field.Set(i.Elem())
 		return nil
 	default:
 		// @TODO warning?

@@ -1,6 +1,8 @@
 package formulate
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -53,16 +55,18 @@ func (h *htmlEncoder) AddShowCondition(value string, fn ShowConditionFunc) {
 func (h *htmlEncoder) Encode(i interface{}) error {
 	v := reflect.ValueOf(i)
 
-	h.recurse(v, v.Type().String(), StructField{}, h.n)
+	if err := h.recurse(v, v.Type().String(), StructField{}, h.n); err != nil {
+		return err
+	}
 
 	return html.Render(h.w, h.n)
 }
 
-func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) {
+func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
 	switch v.Interface().(type) {
 	case time.Time, Select, Radio, CustomEncoder:
 		h.buildField(v, key, field, parent)
-		return
+		return nil
 	}
 
 	switch v.Kind() {
@@ -71,8 +75,7 @@ func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, pa
 			v.Set(reflect.New(v.Type().Elem()))
 		}
 
-		h.recurse(v.Elem(), key, field, parent)
-		return
+		return h.recurse(v.Elem(), key, field, parent)
 	case reflect.Struct:
 		if !field.Anonymous {
 			// anonymous structs use their parent's fieldset
@@ -82,31 +85,27 @@ func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, pa
 		for i := 0; i < v.NumField(); i++ {
 			structField := v.Type().Field(i)
 
-			h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, StructField{structField}, parent)
+			err := h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, StructField{structField}, parent)
+
+			if err != nil {
+				return err
+			}
 		}
-		return
-	case reflect.Map:
-		iter := v.MapRange()
+		return nil
+	case reflect.Slice, reflect.Array, reflect.Map:
+		buf := new(bytes.Buffer)
 
-		for iter.Next() {
-			// something
-			h.recurse(iter.Value(), key, field, parent)
-		}
+		enc := json.NewEncoder(buf)
+		enc.SetIndent("", "  ")
 
-		// @TODO controls to add/remove a map value?
-		return
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < v.Len(); i++ {
-			val := v.Index(i)
-
-			h.recurse(val, key, field, parent)
+		if err := enc.Encode(v.Interface()); err != nil {
+			return err
 		}
 
-		// @TODO controls to add/remove an array slice?
-		return
+		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
 		h.buildField(v, key, field, parent)
-		return
+		return nil
 	}
 }
 
@@ -164,7 +163,7 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
-		a.BuildFormElement(key, rowElement, field)
+		a.BuildFormElement(key, rowElement, field, h.decorator)
 		return
 	case time.Time:
 		h.buildTimeField(a, key, rowElement, field)
@@ -569,6 +568,12 @@ func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructFi
 }
 
 func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
+	helpText := field.GetHelpText()
+
+	if helpText == "" {
+		return
+	}
+
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -576,7 +581,7 @@ func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field Struc
 
 	n.AppendChild(&html.Node{
 		Type: html.TextNode,
-		Data: field.GetHelpText(),
+		Data: helpText,
 	})
 
 	parent.AppendChild(n)
