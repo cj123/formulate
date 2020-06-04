@@ -52,8 +52,20 @@ func (h *htmlEncoder) AddShowCondition(value string, fn ShowConditionFunc) {
 	h.showConditions[value] = fn
 }
 
+func errorIncorrectValue(t reflect.Type) error {
+	return fmt.Errorf("formulate: encode expects a struct value, got: %s", t.String())
+}
+
 func (h *htmlEncoder) Encode(i interface{}) error {
 	v := reflect.ValueOf(i)
+
+	if v.Kind() == reflect.Ptr {
+		if !v.IsValid() || v.Elem().Kind() != reflect.Struct {
+			return errorIncorrectValue(v.Type())
+		}
+	} else if v.Kind() != reflect.Struct {
+		return errorIncorrectValue(v.Type())
+	}
 
 	if err := h.recurse(v, v.Type().String(), StructField{}, h.n); err != nil {
 		return err
