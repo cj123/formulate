@@ -150,45 +150,52 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 		Data: "div",
 	}
 
-	h.decorator.Row(rowElement)
-
 	h.buildLabel(key, rowElement, field)
+	wrapper := &html.Node{
+		Type: html.ElementNode,
+		Data: "div",
+	}
+
+	rowElement.AppendChild(wrapper)
+	h.decorator.FieldWrapper(wrapper)
 
 	defer func() {
-		h.buildHelpText(key, rowElement, field)
+		h.buildHelpText(key, wrapper, field)
+
 		parent.AppendChild(rowElement)
+		h.decorator.Row(rowElement)
 	}()
 
 	key = h.formElementName(key)
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
-		a.BuildFormElement(key, rowElement, field, h.decorator)
+		a.BuildFormElement(key, wrapper, field, h.decorator)
 		return
 	case time.Time:
-		h.buildTimeField(a, key, rowElement, field)
+		h.buildTimeField(a, key, wrapper, field)
 		return
 	case Select:
-		h.buildSelectField(a, key, rowElement, field)
+		h.buildSelectField(a, key, wrapper, field)
 		return
 	case Radio:
-		h.buildRadioButtons(a, key, rowElement, field)
+		h.buildRadioButtons(a, key, wrapper, field)
 		return
 	}
 
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float64, reflect.Float32:
 		if _, ok := v.Interface().(BoolNumber); ok {
-			h.buildBoolField(v, key, rowElement)
+			h.buildBoolField(v, key, wrapper)
 		} else {
-			h.buildNumberField(v, key, rowElement, field)
+			h.buildNumberField(v, key, wrapper, field)
 		}
 		return
 	case reflect.String:
-		h.buildStringField(v, key, rowElement, field)
+		h.buildStringField(v, key, wrapper, field)
 		return
 	case reflect.Bool:
-		h.buildBoolField(v, key, rowElement)
+		h.buildBoolField(v, key, wrapper)
 		return
 	}
 

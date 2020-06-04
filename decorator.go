@@ -6,9 +6,11 @@ type Decorator interface {
 	Form(n *html.Node)
 	Fieldset(n *html.Node)
 	Row(n *html.Node)
-	TextField(n *html.Node)
+	FieldWrapper(n *html.Node)
 	Label(n *html.Node)
 	HelpText(n *html.Node)
+
+	TextField(n *html.Node)
 	NumberField(n *html.Node)
 	CheckboxField(n *html.Node)
 	TextareaField(n *html.Node)
@@ -18,6 +20,10 @@ type Decorator interface {
 }
 
 type nilDecorator struct{}
+
+func (d nilDecorator) FieldWrapper(n *html.Node) {
+
+}
 
 func (d nilDecorator) HelpText(n *html.Node) {
 
@@ -68,11 +74,13 @@ func (d nilDecorator) TextareaField(n *html.Node) {
 
 type BootstrapDecorator struct{}
 
-func (b BootstrapDecorator) HelpText(n *html.Node) {
-	n.Data = "small"
+func (b BootstrapDecorator) FieldWrapper(n *html.Node) {
 	b.col8(n)
-	b.offset4(n)
-	AppendClass(n, "pl-0", "pr-0")
+}
+
+func (b BootstrapDecorator) HelpText(n *html.Node) {
+	n.Data = "div"
+	AppendClass(n, "small mt-1")
 }
 
 func (b BootstrapDecorator) Form(n *html.Node) {
@@ -92,7 +100,6 @@ func (b BootstrapDecorator) Row(n *html.Node) {
 }
 
 func (b BootstrapDecorator) TextField(n *html.Node) {
-	b.col8(n)
 	b.formControl(n)
 }
 
@@ -117,7 +124,6 @@ func (b BootstrapDecorator) formControl(n *html.Node) {
 }
 
 func (b BootstrapDecorator) NumberField(n *html.Node) {
-	b.col8(n)
 	b.formControl(n)
 }
 
@@ -125,31 +131,13 @@ func (b BootstrapDecorator) CheckboxField(n *html.Node) {
 }
 
 func (b BootstrapDecorator) TextareaField(n *html.Node) {
-	b.col8(n)
 	b.formControl(n)
 }
 
 func (b BootstrapDecorator) TimeField(n *html.Node) {
-	b.col8(n)
 	b.formControl(n)
 }
 
 func (b BootstrapDecorator) SelectField(n *html.Node) {
-	if HasAttribute(n, "multiple") {
-		// reparent multiselect
-		x := &html.Node{
-			Type: html.ElementNode,
-			Data: "div",
-		}
-		b.col8(x)
-		AppendClass(x, "pl-0", "pr-0")
-
-		n.Parent.AppendChild(x)
-		n.Parent.RemoveChild(n)
-		b.formControl(n)
-		x.AppendChild(n)
-	} else {
-		b.formControl(n)
-		b.col8(n)
-	}
+	b.formControl(n)
 }
