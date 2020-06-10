@@ -127,23 +127,21 @@ func (h *htmlEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 		Data: "fieldset",
 	}
 
-	legend := &html.Node{
-		Type: html.ElementNode,
-		Data: "legend",
-	}
-
 	name := field.GetName()
 
-	if name == "" {
-		name = camelCase(v.Type().Name())
+	if name != "" {
+		legend := &html.Node{
+			Type: html.ElementNode,
+			Data: "legend",
+		}
+
+		legend.AppendChild(&html.Node{
+			Type: html.TextNode,
+			Data: name,
+		})
+
+		n.AppendChild(legend)
 	}
-
-	legend.AppendChild(&html.Node{
-		Type: html.TextNode,
-		Data: name,
-	})
-
-	n.AppendChild(legend)
 
 	h.decorator.Fieldset(n)
 
@@ -156,6 +154,8 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 	if !v.IsValid() || field.Hidden(h.showConditions) {
 		return
 	}
+
+	key = h.formElementName(key)
 
 	rowElement := &html.Node{
 		Type: html.ElementNode,
@@ -178,7 +178,6 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 		h.decorator.Row(rowElement)
 	}()
 
-	key = h.formElementName(key)
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
