@@ -90,5 +90,5 @@ func (r Raw) BuildFormElement(key string, parent *html.Node, field StructField, 
 	})
 
 	parent.AppendChild(n)
-	decorator.TextareaField(n)
+	decorator.TextareaField(n, field)
 }

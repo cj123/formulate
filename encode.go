@@ -143,7 +143,7 @@ func (h *htmlEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 		n.AppendChild(legend)
 	}
 
-	h.decorator.Fieldset(n)
+	h.decorator.Fieldset(n, field)
 
 	parent.AppendChild(n)
 
@@ -169,15 +169,14 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 	}
 
 	rowElement.AppendChild(wrapper)
-	h.decorator.FieldWrapper(wrapper)
+	h.decorator.FieldWrapper(wrapper, field)
 
 	defer func() {
 		h.buildHelpText(key, wrapper, field)
 
 		parent.AppendChild(rowElement)
-		h.decorator.Row(rowElement)
+		h.decorator.Row(rowElement, field)
 	}()
-
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
@@ -197,7 +196,7 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float64, reflect.Float32:
 		if _, ok := v.Interface().(BoolNumber); ok {
-			h.buildBoolField(v, key, wrapper)
+			h.buildBoolField(v, key, wrapper, field)
 		} else {
 			h.buildNumberField(v, key, wrapper, field)
 		}
@@ -206,7 +205,7 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 		h.buildStringField(v, key, wrapper, field)
 		return
 	case reflect.Bool:
-		h.buildBoolField(v, key, wrapper)
+		h.buildBoolField(v, key, wrapper, field)
 		return
 	}
 
@@ -254,7 +253,7 @@ func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node,
 	}
 
 	parent.AppendChild(n)
-	h.decorator.NumberField(n)
+	h.decorator.NumberField(n, field)
 }
 
 func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
@@ -303,7 +302,7 @@ func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html
 	}
 
 	parent.AppendChild(n)
-	h.decorator.NumberField(n)
+	h.decorator.NumberField(n, field)
 }
 
 func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
@@ -331,7 +330,7 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 		})
 
 		parent.AppendChild(n)
-		h.decorator.TextareaField(n)
+		h.decorator.TextareaField(n, field)
 	} else {
 		typField := func() string {
 			switch v.Interface().(type) {
@@ -372,11 +371,11 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 		}
 
 		parent.AppendChild(n)
-		h.decorator.TextField(n)
+		h.decorator.TextField(n, field)
 	}
 }
 
-func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node) {
+func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -411,7 +410,7 @@ func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.N
 	}
 
 	parent.AppendChild(n)
-	h.decorator.CheckboxField(n)
+	h.decorator.CheckboxField(n, field)
 }
 
 func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
@@ -475,7 +474,7 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 	}
 
 	parent.AppendChild(sel)
-	h.decorator.SelectField(sel)
+	h.decorator.SelectField(sel, field)
 }
 
 func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, field StructField) {
@@ -553,8 +552,8 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 		div.AppendChild(label)
 		div.AppendChild(radio)
 
-		h.decorator.Label(label)
-		h.decorator.RadioButton(radio)
+		h.decorator.Label(label, field)
+		h.decorator.RadioButton(radio, field)
 	}
 
 	parent.AppendChild(div)
@@ -582,15 +581,11 @@ func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructFi
 	})
 
 	parent.AppendChild(n)
-	h.decorator.Label(n)
+	h.decorator.Label(n, field)
 }
 
 func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
 	helpText := field.GetHelpText()
-
-	if helpText == "" {
-		return
-	}
 
 	n := &html.Node{
 		Type: html.ElementNode,
@@ -603,5 +598,5 @@ func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field Struc
 	})
 
 	parent.AppendChild(n)
-	h.decorator.HelpText(n)
+	h.decorator.HelpText(n, field)
 }
