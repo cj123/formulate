@@ -2,142 +2,64 @@ package formulate
 
 import "golang.org/x/net/html"
 
+// Decorator is used to customise node elements that are built by the HTMLEncoder.
+// Custom decorators can be passed into the HTMLEncoder.
+// If no decorator is specified, a nil decorator is used. This applies no decoration to the output HTML.
 type Decorator interface {
-	Form(n *html.Node)
+	// RootNode decorates the root <div> of the returned HTML.
+	RootNode(n *html.Node)
+	// Fieldset decorates each <fieldset>. Fieldsets are created for each
+	// non-anonymous struct within the encoded data structure.
 	Fieldset(n *html.Node, field StructField)
+	// Row decorates the parent of each label, input and help text, for each field within the encoded data structure.
 	Row(n *html.Node, field StructField)
+	// FieldWrapper decorates the div which wraps the input and help text within a form
 	FieldWrapper(n *html.Node, field StructField)
+	// Label decorates the <label> for the form element
 	Label(n *html.Node, field StructField)
+	// HelpText decorates the text which is displayed below each form element.
+	// The HelpText is generated from the "help" struct tag.
 	HelpText(n *html.Node, field StructField)
-
+	// TextField decorates an <input type="text">
 	TextField(n *html.Node, field StructField)
+	// NumberField decorates an <input type="number"> or equivalent (e.g. Tel)
 	NumberField(n *html.Node, field StructField)
+	// CheckboxField decorates an <input type="checkbox">, displayed for boolean values.
 	CheckboxField(n *html.Node, field StructField)
+	// TextareaField decorates a <textarea> tag.
 	TextareaField(n *html.Node, field StructField)
+	// TimeField decorates an <input type="datetime-local"> used to represent time values.
 	TimeField(n *html.Node, field StructField)
+	// SelectField decorates a <select> dropdown
 	SelectField(n *html.Node, field StructField)
+	// RadioButton decorates an individual <input type="radio">
 	RadioButton(n *html.Node, field StructField)
 }
 
 type nilDecorator struct{}
 
-func (d nilDecorator) FieldWrapper(n *html.Node, field StructField) {
+func (d nilDecorator) RootNode(n *html.Node) {}
 
-}
+func (d nilDecorator) Fieldset(n *html.Node, field StructField) {}
 
-func (d nilDecorator) HelpText(n *html.Node, field StructField) {
+func (d nilDecorator) Row(n *html.Node, field StructField) {}
 
-}
+func (d nilDecorator) FieldWrapper(n *html.Node, field StructField) {}
 
-func (d nilDecorator) Form(n *html.Node) {
-}
+func (d nilDecorator) Label(n *html.Node, field StructField) {}
 
-func (d nilDecorator) RadioButton(n *html.Node, field StructField) {
+func (d nilDecorator) HelpText(n *html.Node, field StructField) {}
 
-}
+func (d nilDecorator) TextField(n *html.Node, field StructField) {}
 
-func (d nilDecorator) SelectField(n *html.Node, field StructField) {
+func (d nilDecorator) NumberField(n *html.Node, field StructField) {}
 
-}
+func (d nilDecorator) CheckboxField(n *html.Node, field StructField) {}
 
-func (d nilDecorator) Fieldset(n *html.Node, field StructField) {
+func (d nilDecorator) TextareaField(n *html.Node, field StructField) {}
 
-}
+func (d nilDecorator) TimeField(n *html.Node, field StructField) {}
 
-func (d nilDecorator) TimeField(n *html.Node, field StructField) {
+func (d nilDecorator) SelectField(n *html.Node, field StructField) {}
 
-}
-
-func (d nilDecorator) Row(n *html.Node, field StructField) {
-
-}
-
-func (d nilDecorator) TextField(n *html.Node, field StructField) {
-
-}
-
-func (d nilDecorator) Label(n *html.Node, field StructField) {
-
-}
-
-func (d nilDecorator) NumberField(n *html.Node, field StructField) {
-
-}
-
-func (d nilDecorator) CheckboxField(n *html.Node, field StructField) {
-
-}
-
-func (d nilDecorator) TextareaField(n *html.Node, field StructField) {
-
-}
-
-type BootstrapDecorator struct{}
-
-func (b BootstrapDecorator) FieldWrapper(n *html.Node, field StructField) {
-	b.col8(n)
-}
-
-func (b BootstrapDecorator) HelpText(n *html.Node, field StructField) {
-	n.Data = "div"
-	AppendClass(n, "small mt-1")
-}
-
-func (b BootstrapDecorator) Form(n *html.Node) {
-
-}
-
-func (b BootstrapDecorator) RadioButton(n *html.Node, field StructField) {
-
-}
-
-func (b BootstrapDecorator) Fieldset(n *html.Node, field StructField) {
-
-}
-
-func (b BootstrapDecorator) Row(n *html.Node, field StructField) {
-	AppendClass(n, "row", "form-group")
-}
-
-func (b BootstrapDecorator) TextField(n *html.Node, field StructField) {
-	b.formControl(n)
-}
-
-func (b BootstrapDecorator) Label(n *html.Node, field StructField) {
-	b.col4(n)
-}
-
-func (b BootstrapDecorator) col4(n *html.Node) {
-	AppendClass(n, "col-md-4 col-12")
-}
-
-func (b BootstrapDecorator) col8(n *html.Node) {
-	AppendClass(n, "col-md-8 col-12")
-}
-
-func (b BootstrapDecorator) offset4(n *html.Node) {
-	AppendClass(n, "offset-md-4")
-}
-
-func (b BootstrapDecorator) formControl(n *html.Node) {
-	AppendClass(n, "form-control")
-}
-
-func (b BootstrapDecorator) NumberField(n *html.Node, field StructField) {
-	b.formControl(n)
-}
-
-func (b BootstrapDecorator) CheckboxField(n *html.Node, field StructField) {
-}
-
-func (b BootstrapDecorator) TextareaField(n *html.Node, field StructField) {
-	b.formControl(n)
-}
-
-func (b BootstrapDecorator) TimeField(n *html.Node, field StructField) {
-	b.formControl(n)
-}
-
-func (b BootstrapDecorator) SelectField(n *html.Node, field StructField) {
-	b.formControl(n)
-}
+func (d nilDecorator) RadioButton(n *html.Node, field StructField) {}

@@ -9,21 +9,21 @@ import (
 	"time"
 )
 
-type Decoder interface {
-	Decode(val interface{}) error
-}
-
-type httpDecoder struct {
+// HTTPDecoder takes a set of url values and decodes them.
+type HTTPDecoder struct {
 	form url.Values
 }
 
-func NewDecoder(form url.Values) Decoder {
-	return &httpDecoder{
+// NewDecoder creates a new HTTPDecoder.
+func NewDecoder(form url.Values) *HTTPDecoder {
+	return &HTTPDecoder{
 		form: form,
 	}
 }
 
-func (h *httpDecoder) Decode(data interface{}) error {
+// Decode a the given values into a provided interface{}. Note that the underlying
+// value must be a pointer.
+func (h *HTTPDecoder) Decode(data interface{}) error {
 	val := reflect.ValueOf(data)
 
 	if val.Kind() != reflect.Ptr {
@@ -41,7 +41,7 @@ func (h *httpDecoder) Decode(data interface{}) error {
 
 const fieldSeparator = "."
 
-func (h *httpDecoder) assignFieldValues(val reflect.Value, formName string, formValues []string) error {
+func (h *HTTPDecoder) assignFieldValues(val reflect.Value, formName string, formValues []string) error {
 	parts := strings.Split(formName, fieldSeparator)
 	field := val.FieldByName(parts[0])
 

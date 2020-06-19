@@ -2,14 +2,13 @@ package formulate
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 	"time"
-
-	"github.com/yosssi/gohtml"
 )
 
 type YourDetails struct {
+	EmbeddedStruct
+
 	Name           string `name:"Full Name"`
 	Age            int    `step:"1" min:"0"`
 	Email          Email
@@ -26,9 +25,7 @@ type YourDetails struct {
 }
 
 type Address struct {
-	EmbeddedStruct
-
-	HouseName       string
+	HouseName       string `help:"You can leave this blank."`
 	AddressLine1    string
 	AddressLine2    string
 	Postcode        string
@@ -98,7 +95,8 @@ func (c ContactMethod) RadioOptions() []Option {
 
 func TestHtmlEncoder_Encode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	m := NewEncoder(buf, BootstrapDecorator{})
+	m := NewEncoder(buf, nil)
+	m.SetFormat(true)
 
 	if err := m.Encode(&YourDetails{
 		Name:           "Jane Doe",
@@ -129,5 +127,5 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Println(gohtml.Format(buf.String()))
+	//fmt.Println(buf.String())
 }
