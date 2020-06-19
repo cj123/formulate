@@ -9,26 +9,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yosssi/gohtml"
 	"golang.org/x/net/html"
 )
 
-type Encoder interface {
-	Encode(i interface{}) error
-	AddShowCondition(value string, fn ShowConditionFunc)
-}
-
-type ShowConditionFunc func() bool
-
-type htmlEncoder struct {
+// HTMLEncoder is used to generate a HTML form from a given struct.
+type HTMLEncoder struct {
 	n *html.Node
 	w io.Writer
 
 	decorator Decorator
+	format    bool
 
 	showConditions map[string]ShowConditionFunc
 }
 
-func NewEncoder(w io.Writer, decorator Decorator) Encoder {
+// NewEncoder returns a HTMLEncoder which outputs to w. A Decorator can be passed to NewEncoder, which will then be used
+// to style the outputted HTML. If nil is passed in, no decorator is used, and a barebones HTML form will be returned.
+func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -38,9 +36,9 @@ func NewEncoder(w io.Writer, decorator Decorator) Encoder {
 		decorator = nilDecorator{}
 	}
 
-	decorator.Form(n)
+	decorator.RootNode(n)
 
-	return &htmlEncoder{
+	return &HTMLEncoder{
 		w:              w,
 		n:              n,
 		decorator:      decorator,
@@ -48,15 +46,40 @@ func NewEncoder(w io.Writer, decorator Decorator) Encoder {
 	}
 }
 
-func (h *htmlEncoder) AddShowCondition(value string, fn ShowConditionFunc) {
-	h.showConditions[value] = fn
+// SetFormat tells the HTMLEncoder to output formatted HTML.
+// Formatting is provided by the https://github.com/yosssi/gohtml package.
+func (h *HTMLEncoder) SetFormat(b bool) {
+	h.format = b
+}
+
+// ShowConditionFunc is a function which determines whether or not to show a form element. See: HTMLEncoder.AddShowCondition
+type ShowConditionFunc func() bool
+
+// AddShowCondition allows you to determine visibility of certain form elements.
+// For example, given the following struct:
+//   type Example struct {
+//     Name string
+//     SecretOption bool `show:"adminOnly"`
+//   }
+// If you wanted to make the SecretOption field only show to admins, you would call AddShowCondition as follows:
+//   AddShowCondition("adminOnly", func() bool {
+//      // some code that determines if we are 'admin'
+//   })
+// You can add multiple ShowConditions, but they must have different keys.
+func (h *HTMLEncoder) AddShowCondition(key string, fn ShowConditionFunc) {
+	h.showConditions[key] = fn
 }
 
 func errorIncorrectValue(t reflect.Type) error {
 	return fmt.Errorf("formulate: encode expects a struct value, got: %s", t.String())
 }
 
-func (h *htmlEncoder) Encode(i interface{}) error {
+// Encode takes a struct (or struct pointer) and produces a HTML form from all elements in the struct.
+// The encoder deals with most simple types and structs, but more complex types (maps, slices, arrays)
+// will render as a JSON blob in a <textarea>.
+//
+// The rendering behavior of any element can be replaced by implementing the CustomEncoder interface.
+func (h *HTMLEncoder) Encode(i interface{}) error {
 	v := reflect.ValueOf(i)
 
 	if v.Kind() == reflect.Ptr {
@@ -71,12 +94,26 @@ func (h *htmlEncoder) Encode(i interface{}) error {
 		return err
 	}
 
-	return html.Render(h.w, h.n)
+	if !h.format {
+		return html.Render(h.w, h.n)
+	}
+
+	buf := new(bytes.Buffer)
+
+	if err := html.Render(buf, h.n); err != nil {
+		return err
+	}
+
+	if _, err := h.w.Write(gohtml.FormatBytes(buf.Bytes())); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
+func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
 	switch v.Interface().(type) {
-	case time.Time, Select, Radio, CustomEncoder:
+	case time.Time, Select, RadioList, CustomEncoder:
 		h.buildField(v, key, field, parent)
 		return nil
 	}
@@ -121,7 +158,7 @@ func (h *htmlEncoder) recurse(v reflect.Value, key string, field StructField, pa
 	}
 }
 
-func (h *htmlEncoder) buildFieldSet(v reflect.Value, field StructField, parent *html.Node) *html.Node {
+func (h *HTMLEncoder) buildFieldSet(v reflect.Value, field StructField, parent *html.Node) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "fieldset",
@@ -150,7 +187,7 @@ func (h *htmlEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 	return n
 }
 
-func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) {
+func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) {
 	if !v.IsValid() || field.Hidden(h.showConditions) {
 		return
 	}
@@ -188,7 +225,7 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 	case Select:
 		h.buildSelectField(a, key, wrapper, field)
 		return
-	case Radio:
+	case RadioList:
 		h.buildRadioButtons(a, key, wrapper, field)
 		return
 	}
@@ -214,7 +251,7 @@ func (h *htmlEncoder) buildField(v reflect.Value, key string, field StructField,
 
 const timeFormat = "2006-01-02T15:04"
 
-func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildTimeField(t time.Time, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -256,7 +293,7 @@ func (h *htmlEncoder) buildTimeField(t time.Time, key string, parent *html.Node,
 	h.decorator.NumberField(n, field)
 }
 
-func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -305,7 +342,7 @@ func (h *htmlEncoder) buildNumberField(v reflect.Value, key string, parent *html
 	h.decorator.NumberField(n, field)
 }
 
-func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	var n *html.Node
 
 	if field.Elem() == "textarea" {
@@ -353,7 +390,7 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 			Attr: []html.Attribute{
 				{
 					Key: "type",
-					Val: field.Type(typField()),
+					Val: field.InputType(typField()),
 				},
 				{
 					Key: "name",
@@ -375,7 +412,7 @@ func (h *htmlEncoder) buildStringField(v reflect.Value, key string, parent *html
 	}
 }
 
-func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -413,7 +450,7 @@ func (h *htmlEncoder) buildBoolField(v reflect.Value, key string, parent *html.N
 	h.decorator.CheckboxField(n, field)
 }
 
-func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
 	sel := &html.Node{
 		Type: html.ElementNode,
 		Data: "select",
@@ -477,7 +514,7 @@ func (h *htmlEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 	h.decorator.SelectField(sel, field)
 }
 
-func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildRadioButtons(r RadioList, key string, parent *html.Node, field StructField) {
 	div := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -559,11 +596,11 @@ func (h *htmlEncoder) buildRadioButtons(r Radio, key string, parent *html.Node, 
 	parent.AppendChild(div)
 }
 
-func (h *htmlEncoder) formElementName(label string) string {
+func (h *HTMLEncoder) formElementName(label string) string {
 	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
 }
 
-func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildLabel(label string, parent *html.Node, field StructField) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "label",
@@ -584,7 +621,7 @@ func (h *htmlEncoder) buildLabel(label string, parent *html.Node, field StructFi
 	h.decorator.Label(n, field)
 }
 
-func (h *htmlEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
+func (h *HTMLEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
 	helpText := field.GetHelpText()
 
 	n := &html.Node{

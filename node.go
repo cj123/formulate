@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/html"
 )
 
+// AppendClass adds a class to a HTML node.
 func AppendClass(n *html.Node, classes ...string) {
 	class := strings.Join(classes, " ")
 
@@ -22,6 +23,7 @@ func AppendClass(n *html.Node, classes ...string) {
 	})
 }
 
+// HasAttribute returns true if n has the attribute named attr.
 func HasAttribute(n *html.Node, attr string) bool {
 	for _, a := range n.Attr {
 		if a.Key == attr {
