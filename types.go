@@ -16,7 +16,8 @@ type CustomEncoder interface {
 	// the parent node of the element, the field of the struct
 	// that is currently being rendered, and the form's decorator.
 	// Note that the built element must be appended to the parent or it will not be shown in the form!
-	BuildFormElement(key string, parent *html.Node, field StructField, decorator Decorator)
+	// Errors returned from BuildFormElement propagate back through to the formulate.Encoder.Encode call.
+	BuildFormElement(key string, parent *html.Node, field StructField, decorator Decorator) error
 }
 
 // CustomDecoder allows for custom decoding behavior to be specified for an element. If
@@ -101,7 +102,7 @@ func (bn *BoolNumber) Bool() bool {
 type Raw []byte
 
 // BuildFormElement implements the CustomEncoder interface.
-func (r Raw) BuildFormElement(key string, parent *html.Node, field StructField, decorator Decorator) {
+func (r Raw) BuildFormElement(key string, parent *html.Node, field StructField, decorator Decorator) error {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "textarea",
@@ -124,4 +125,6 @@ func (r Raw) BuildFormElement(key string, parent *html.Node, field StructField, 
 
 	parent.AppendChild(n)
 	decorator.TextareaField(n, field)
+
+	return nil
 }

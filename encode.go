@@ -114,8 +114,7 @@ func (h *HTMLEncoder) Encode(i interface{}) error {
 func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
 	switch v.Interface().(type) {
 	case time.Time, Select, RadioList, CustomEncoder:
-		h.buildField(v, key, field, parent)
-		return nil
+		return h.buildField(v, key, field, parent)
 	}
 
 	switch v.Kind() {
@@ -153,8 +152,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
-		h.buildField(v, key, field, parent)
-		return nil
+		return h.buildField(v, key, field, parent)
 	}
 }
 
@@ -187,9 +185,9 @@ func (h *HTMLEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 	return n
 }
 
-func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) {
+func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) error {
 	if !v.IsValid() || field.Hidden(h.showConditions) {
-		return
+		return nil
 	}
 
 	key = h.formElementName(key)
@@ -208,26 +206,25 @@ func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField,
 	rowElement.AppendChild(wrapper)
 	h.decorator.FieldWrapper(wrapper, field)
 
+	parent.AppendChild(rowElement)
+
 	defer func() {
 		h.buildHelpText(key, wrapper, field)
-
-		parent.AppendChild(rowElement)
 		h.decorator.Row(rowElement, field)
 	}()
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
-		a.BuildFormElement(key, wrapper, field, h.decorator)
-		return
+		return a.BuildFormElement(key, wrapper, field, h.decorator)
 	case time.Time:
 		h.buildTimeField(a, key, wrapper, field)
-		return
+		return nil
 	case Select:
 		h.buildSelectField(a, key, wrapper, field)
-		return
+		return nil
 	case RadioList:
 		h.buildRadioButtons(a, key, wrapper, field)
-		return
+		return nil
 	}
 
 	switch v.Kind() {
@@ -237,13 +234,13 @@ func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField,
 		} else {
 			h.buildNumberField(v, key, wrapper, field)
 		}
-		return
+		return nil
 	case reflect.String:
 		h.buildStringField(v, key, wrapper, field)
-		return
+		return nil
 	case reflect.Bool:
 		h.buildBoolField(v, key, wrapper, field)
-		return
+		return nil
 	}
 
 	panic("formulate: unknown element kind: " + v.Kind().String())
