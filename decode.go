@@ -30,6 +30,18 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 		panic("formulate: decode target must be pointer")
 	}
 
+	if decoder, ok := data.(CustomDecoder); ok {
+		data, err := decoder.DecodeFormValue(h.form, "", nil)
+
+		if err != nil {
+			return err
+		}
+
+		val.Elem().Set(data)
+
+		return nil
+	}
+
 	for name, vals := range h.form {
 		if err := h.assignFieldValues(val.Elem(), name, vals); err != nil {
 			return err
