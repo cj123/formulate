@@ -178,9 +178,8 @@ func (h *HTMLEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 		n.AppendChild(legend)
 	}
 
-	h.decorator.Fieldset(n, field)
-
 	parent.AppendChild(n)
+	h.decorator.Fieldset(n, field)
 
 	return n
 }
