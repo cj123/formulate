@@ -12,7 +12,7 @@ import (
 //
 //  - name (e.g. name:"Phone Number") - this overwrites the name used in the label. This value can be left empty.
 //  - help (e.g. help:"Enter your phone number, including area code") - this text is displayed alongside the input field as a prompt.
-//  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details
+//  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details. if "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
 //  - type (e.g. type:"tel") - sets the HTML input "type" attribute
 //  - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
 //  - min (e.g. min:"0") - minimum value for number inputs
@@ -106,4 +106,14 @@ func (sf StructField) HasStep() bool {
 // Step value of the StructField
 func (sf StructField) Step() string {
 	return sf.Tag.Get("step")
+}
+
+// BuildFieldset determines whether a given struct should be inside its own fieldset. Use the Struct Tag
+// show:"contents" to indicate that a fieldset should not be built for this struct.
+func (sf StructField) BuildFieldset() bool {
+	if sf.Tag.Get("show") == "contents" {
+		return false
+	}
+
+	return !sf.StructField.Anonymous
 }

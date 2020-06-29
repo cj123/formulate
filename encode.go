@@ -125,7 +125,11 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(v.Elem(), key, field, parent)
 	case reflect.Struct:
-		if !field.Anonymous {
+		if field.Hidden(h.showConditions) {
+			return nil
+		}
+
+		if field.BuildFieldset() {
 			// anonymous structs use their parent's fieldset
 			parent = h.buildFieldSet(v, field, parent)
 		}
