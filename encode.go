@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -312,7 +313,7 @@ func (h *HTMLEncoder) buildNumberField(v reflect.Value, key string, parent *html
 			},
 			{
 				Key: "value",
-				Val: fmt.Sprintf("%v", v.Interface()),
+				Val: toString(v.Interface()),
 			},
 		},
 	}
@@ -479,7 +480,7 @@ func (h *HTMLEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 			Attr: []html.Attribute{
 				{
 					Key: "value",
-					Val: fmt.Sprintf("%v", opt.Value),
+					Val: toString(opt.Value),
 				},
 			},
 		}
@@ -539,7 +540,7 @@ func (h *HTMLEncoder) buildRadioButtons(r RadioList, key string, parent *html.No
 				},
 				{
 					Key: "value",
-					Val: fmt.Sprintf("%v", opt.Value),
+					Val: toString(opt.Value),
 				},
 				{
 					Key: "id",
@@ -636,4 +637,23 @@ func (h *HTMLEncoder) buildHelpText(label string, parent *html.Node, field Struc
 
 	parent.AppendChild(n)
 	h.decorator.HelpText(n, field)
+}
+
+func toString(i interface{}) string {
+	val := reflect.ValueOf(i)
+
+	switch val.Kind() {
+	case reflect.Bool:
+		return strconv.FormatBool(val.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(val.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(val.Uint(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(val.Float(), 'f', -1, 64)
+	case reflect.String:
+		return val.String()
+	default:
+		return fmt.Sprintf("%v", i)
+	}
 }
