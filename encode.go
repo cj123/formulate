@@ -337,6 +337,11 @@ func (h *HTMLEncoder) buildNumberField(v reflect.Value, key string, parent *html
 			Key: "step",
 			Val: field.Step(),
 		})
+	} else if v.Kind() == reflect.Float64 || v.Kind() == reflect.Float32 {
+		n.Attr = append(n.Attr, html.Attribute{
+			Key: "step",
+			Val: "any",
+		})
 	}
 
 	parent.AppendChild(n)

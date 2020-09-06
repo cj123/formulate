@@ -9,15 +9,16 @@ import (
 type YourDetails struct {
 	EmbeddedStruct
 
-	Name           string `name:"Full Name"`
-	Age            int    `step:"1" min:"0"`
-	Email          Email
-	ConfirmedEmail bool
-	Description    string `elem:"textarea"`
-	Password       Password
-	Time           time.Time
-	Pet            Pet
-	ContactMethod  ContactMethod
+	Name            string `name:"Full Name"`
+	Age             int    `step:"1" min:"0"`
+	Email           Email
+	ConfirmedEmail  bool
+	Description     string `elem:"textarea"`
+	Password        Password
+	Time            time.Time
+	Pet             Pet
+	ContactMethod   ContactMethod
+	FavouriteNumber float64
 
 	Address *Address
 

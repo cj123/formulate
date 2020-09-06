@@ -102,6 +102,15 @@ func (h *HTTPDecoder) assignFieldValues(val reflect.Value, formName string, form
 	case reflect.String:
 		field.SetString(formValue)
 		return nil
+	case reflect.Float64, reflect.Float32:
+		i, err := strconv.ParseFloat(formValue, 64)
+
+		if err != nil {
+			return err
+		}
+
+		field.SetFloat(i)
+		return nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		i, err := strconv.ParseInt(formValue, 10, 0)
 

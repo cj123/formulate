@@ -29,6 +29,7 @@ It spans multiple lines`
 		"Address.Country":         {"UK"},
 		"EmbeddedStruct.Type":     {"4838374"},
 		"TestMap":                 {`{"Foo": "Banana", "baz": "chocolate"}`},
+		"FavouriteNumber":         {"1.222"},
 	}
 
 	var details YourDetails
@@ -54,6 +55,7 @@ It spans multiple lines`
 	assertEquals(t, details.Address.TelephoneNumber, Tel("012345678910"))
 	assertEquals(t, details.Address.Country, "UK")
 	assertEquals(t, details.Type, uint32(4838374))
+	assertEquals(t, details.FavouriteNumber, 1.222)
 }
 
 func assertEquals(t *testing.T, a interface{}, b interface{}) {
