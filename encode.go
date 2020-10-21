@@ -413,6 +413,13 @@ func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html
 			},
 		}
 
+		if field.Tag.Get("pattern") != "" {
+			n.Attr = append(n.Attr, html.Attribute{
+				Key:       "pattern",
+				Val:       field.Tag.Get("pattern"),
+			})
+		}
+
 		parent.AppendChild(n)
 		h.decorator.TextField(n, field)
 	}
