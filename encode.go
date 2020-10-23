@@ -413,10 +413,10 @@ func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html
 			},
 		}
 
-		if field.Tag.Get("pattern") != "" {
+		if pattern := field.Pattern(); pattern != "" {
 			n.Attr = append(n.Attr, html.Attribute{
-				Key:       "pattern",
-				Val:       field.Tag.Get("pattern"),
+				Key: "pattern",
+				Val: pattern,
 			})
 		}
 

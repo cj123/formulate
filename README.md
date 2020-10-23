@@ -12,7 +12,7 @@ type Address struct {
     AddressLine2    string
     Postcode        string
     TelephoneNumber Tel
-    Country         string
+    CountryCode     string `pattern:"[A-Za-z]{3}"`
 }
 
 buf := new(bytes.Buffer)
@@ -82,11 +82,11 @@ Output:
       </div>
     </div>
     <div>
-      <label for="Country">
-        Country
+      <label for="CountryCode">
+        Country Code
       </label>
       <div>
-        <input type="text" name="Country" id="Country" value=""/>
+        <input type="text" name="CountryCode" id="CountryCode" value="" pattern="[A-Za-z]{3}"/>
         <div></div>
       </div>
     </div>
@@ -103,7 +103,7 @@ type Address struct {
     AddressLine2    string
     Postcode        string
     TelephoneNumber Tel
-    Country         string
+    CountryCode     string `pattern:"[A-Za-z]{3}"`
 }
 
 // formValues - usually these would come from *http.Request.Form!
@@ -113,7 +113,7 @@ formValues := url.Values{
     "AddressLine2":    {"Fake City"},
     "Postcode":        {"Postcode"},
     "TelephoneNumber": {"012345678910"},
-    "Country":         {"UK"},
+    "CountryCode":     {"GBR"},
 }
 
 var address Address
@@ -129,7 +129,7 @@ fmt.Printf("Line 1: %s\n", address.AddressLine1)
 fmt.Printf("Line 2: %s\n", address.AddressLine2)
 fmt.Printf("Postcode: %s\n", address.Postcode)
 fmt.Printf("Telephone: %s\n", address.TelephoneNumber)
-fmt.Printf("Country: %s\n", address.Country)
+fmt.Printf("CountryCode: %s\n", address.CountryCode)
 ```
 
 Output:
@@ -140,7 +140,7 @@ Line 1: Fake Town
 Line 2: Fake City
 Postcode: Postcode
 Telephone: 012345678910
-Country: UK
+CountryCode: GBR
 ```
 
    [GodocSVG]: https://godoc.org/github.com/cj123/formulate?status.svg

@@ -19,6 +19,7 @@ type YourDetails struct {
 	Pet             Pet
 	ContactMethod   ContactMethod
 	FavouriteNumber float64
+	CountryCode     string `pattern:"[A-Za-z]{3}"`
 
 	Address *Address
 

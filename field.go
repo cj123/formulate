@@ -18,13 +18,15 @@ import (
 //  - min (e.g. min:"0") - minimum value for number inputs
 //  - max (e.g. max:"10") - maximum value for number inputs
 //  - step (e.g. step:"0.1") - step size for number inputs
+//  - pattern (e.g. pattern:"[a-z]+" - regex pattern for text inputs
 //
 // These can all be used in combination with one another in a struct field. A full example of the above types is:
 //
 //    type Address struct {
-//    	HouseNumber int `min:"0" help:"Please enter your house number" name:"House Number (if any)"
-//    	AddressLine1 string
-//    	DeliveryInstructions string `elem:"textarea"`
+//        HouseNumber          int `min:"0" help:"Please enter your house number" name:"House Number (if any)"
+//        AddressLine1         string
+//        DeliveryInstructions string `elem:"textarea"`
+//        CountryCode          string `pattern:"[A-Za-z]{3}"`
 //    }
 type StructField struct {
 	reflect.StructField
@@ -106,6 +108,10 @@ func (sf StructField) HasStep() bool {
 // Step value of the StructField
 func (sf StructField) Step() string {
 	return sf.Tag.Get("step")
+}
+
+func (sf StructField) Pattern() string {
+	return sf.Tag.Get("pattern")
 }
 
 // BuildFieldset determines whether a given struct should be inside its own fieldset. Use the Struct Tag
