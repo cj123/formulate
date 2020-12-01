@@ -221,38 +221,51 @@ func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField,
 	case CustomEncoder:
 		return a.BuildFormElement(key, wrapper, field, h.decorator)
 	case time.Time:
-		h.buildTimeField(a, key, wrapper, field)
+		n := BuildTimeField(a, key, field)
+		wrapper.AppendChild(n)
+		h.decorator.NumberField(n, field)
 		return nil
 	case Select:
-		h.buildSelectField(a, key, wrapper, field)
+		n := BuildSelectField(a, key, field)
+		wrapper.AppendChild(n)
+		h.decorator.SelectField(n, field)
 		return nil
 	case RadioList:
-		h.buildRadioButtons(a, key, wrapper, field)
+		n := BuildRadioButtons(a, key, field, h.decorator)
+		wrapper.AppendChild(n)
 		return nil
 	}
 
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float64, reflect.Float32:
 		if _, ok := v.Interface().(BoolNumber); ok {
-			h.buildBoolField(v, key, wrapper, field)
+			n := BuildBoolField(v, key, field)
+			wrapper.AppendChild(n)
+			h.decorator.CheckboxField(n, field)
 		} else {
-			h.buildNumberField(v, key, wrapper, field)
+			n := BuildNumberField(v, key, field)
+			wrapper.AppendChild(n)
+			h.decorator.NumberField(n, field)
 		}
 		return nil
 	case reflect.String:
-		h.buildStringField(v, key, wrapper, field)
+		n := BuildStringField(v, key, field)
+		wrapper.AppendChild(n)
+		h.decorator.TextareaField(n, field)
 		return nil
 	case reflect.Bool:
-		h.buildBoolField(v, key, wrapper, field)
+		n := BuildBoolField(v, key, field)
+		wrapper.AppendChild(n)
+		h.decorator.CheckboxField(n, field)
 		return nil
+	default:
+		panic("formulate: unknown element kind: " + v.Kind().String())
 	}
-
-	panic("formulate: unknown element kind: " + v.Kind().String())
 }
 
 const timeFormat = "2006-01-02T15:04"
 
-func (h *HTMLEncoder) buildTimeField(t time.Time, key string, parent *html.Node, field StructField) {
+func BuildTimeField(t time.Time, key string, field StructField) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -290,11 +303,10 @@ func (h *HTMLEncoder) buildTimeField(t time.Time, key string, parent *html.Node,
 		})
 	}
 
-	parent.AppendChild(n)
-	h.decorator.NumberField(n, field)
+	return n
 }
 
-func (h *HTMLEncoder) buildNumberField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func BuildNumberField(v reflect.Value, key string, field StructField) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -344,11 +356,10 @@ func (h *HTMLEncoder) buildNumberField(v reflect.Value, key string, parent *html
 		})
 	}
 
-	parent.AppendChild(n)
-	h.decorator.NumberField(n, field)
+	return n
 }
 
-func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func BuildStringField(v reflect.Value, key string, field StructField) *html.Node {
 	var n *html.Node
 
 	if field.Elem() == "textarea" {
@@ -371,9 +382,6 @@ func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html
 			Type: html.TextNode,
 			Data: v.String(),
 		})
-
-		parent.AppendChild(n)
-		h.decorator.TextareaField(n, field)
 	} else {
 		typField := func() string {
 			switch v.Interface().(type) {
@@ -419,13 +427,12 @@ func (h *HTMLEncoder) buildStringField(v reflect.Value, key string, parent *html
 				Val: pattern,
 			})
 		}
-
-		parent.AppendChild(n)
-		h.decorator.TextField(n, field)
 	}
+
+	return n
 }
 
-func (h *HTMLEncoder) buildBoolField(v reflect.Value, key string, parent *html.Node, field StructField) {
+func BuildBoolField(v reflect.Value, key string, field StructField) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -459,11 +466,10 @@ func (h *HTMLEncoder) buildBoolField(v reflect.Value, key string, parent *html.N
 		n.Attr = append(n.Attr, html.Attribute{Key: "checked", Val: "checked"})
 	}
 
-	parent.AppendChild(n)
-	h.decorator.CheckboxField(n, field)
+	return n
 }
 
-func (h *HTMLEncoder) buildSelectField(s Select, key string, parent *html.Node, field StructField) {
+func BuildSelectField(s Select, key string, field StructField) *html.Node {
 	sel := &html.Node{
 		Type: html.ElementNode,
 		Data: "select",
@@ -523,11 +529,10 @@ func (h *HTMLEncoder) buildSelectField(s Select, key string, parent *html.Node, 
 		sel.AppendChild(o)
 	}
 
-	parent.AppendChild(sel)
-	h.decorator.SelectField(sel, field)
+	return sel
 }
 
-func (h *HTMLEncoder) buildRadioButtons(r RadioList, key string, parent *html.Node, field StructField) {
+func BuildRadioButtons(r RadioList, key string, field StructField, decorator Decorator) *html.Node {
 	div := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -602,11 +607,11 @@ func (h *HTMLEncoder) buildRadioButtons(r RadioList, key string, parent *html.No
 		div.AppendChild(label)
 		div.AppendChild(radio)
 
-		h.decorator.Label(label, field)
-		h.decorator.RadioButton(radio, field)
+		decorator.Label(label, field)
+		decorator.RadioButton(radio, field)
 	}
 
-	parent.AppendChild(div)
+	return div
 }
 
 func (h *HTMLEncoder) formElementName(label string) string {
