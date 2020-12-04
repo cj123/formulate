@@ -115,7 +115,7 @@ func (h *HTMLEncoder) Encode(i interface{}) error {
 func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
 	switch v.Interface().(type) {
 	case time.Time, Select, RadioList, CustomEncoder:
-		return h.buildField(v, key, field, parent)
+		return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
 	}
 
 	switch v.Kind() {
@@ -132,7 +132,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		if field.BuildFieldset() {
 			// anonymous structs use their parent's fieldset
-			parent = h.buildFieldSet(v, field, parent)
+			parent = h.buildFieldSet(field, parent)
 		}
 
 		for i := 0; i < v.NumField(); i++ {
@@ -157,11 +157,11 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
-		return h.buildField(v, key, field, parent)
+		return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
 	}
 }
 
-func (h *HTMLEncoder) buildFieldSet(v reflect.Value, field StructField, parent *html.Node) *html.Node {
+func (h *HTMLEncoder) buildFieldSet(field StructField, parent *html.Node) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "fieldset",
@@ -189,49 +189,47 @@ func (h *HTMLEncoder) buildFieldSet(v reflect.Value, field StructField, parent *
 	return n
 }
 
-func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField, parent *html.Node) error {
-	if !v.IsValid() || field.Hidden(h.showConditions) {
+func BuildField(v reflect.Value, key string, field StructField, parent *html.Node, decorator Decorator, showConditions map[string]ShowConditionFunc) error {
+	if !v.IsValid() || field.Hidden(showConditions) {
 		return nil
 	}
-
-	key = h.formElementName(key)
 
 	rowElement := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
 	}
 
-	h.buildLabel(key, rowElement, field)
+	BuildLabel(key, rowElement, field, decorator)
 	wrapper := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
 	}
 
 	rowElement.AppendChild(wrapper)
-	h.decorator.FieldWrapper(wrapper, field)
+	decorator.FieldWrapper(wrapper, field)
 
 	parent.AppendChild(rowElement)
 
 	defer func() {
-		h.buildHelpText(key, wrapper, field)
-		h.decorator.Row(rowElement, field)
+		BuildHelpText(wrapper, field, decorator)
+		decorator.Row(rowElement, field)
 	}()
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:
-		return a.BuildFormElement(key, wrapper, field, h.decorator)
+		return a.BuildFormElement(key, wrapper, field, decorator)
 	case time.Time:
 		n := BuildTimeField(a, key, field)
 		wrapper.AppendChild(n)
-		h.decorator.NumberField(n, field)
+		decorator.NumberField(n, field)
 		return nil
 	case Select:
 		n := BuildSelectField(a, key, field)
 		wrapper.AppendChild(n)
-		h.decorator.SelectField(n, field)
+		decorator.SelectField(n, field)
 		return nil
 	case RadioList:
-		n := BuildRadioButtons(a, key, field, h.decorator)
+		n := BuildRadioButtons(a, key, field, decorator)
 		wrapper.AppendChild(n)
 		return nil
 	}
@@ -241,22 +239,22 @@ func (h *HTMLEncoder) buildField(v reflect.Value, key string, field StructField,
 		if _, ok := v.Interface().(BoolNumber); ok {
 			n := BuildBoolField(v, key, field)
 			wrapper.AppendChild(n)
-			h.decorator.CheckboxField(n, field)
+			decorator.CheckboxField(n, field)
 		} else {
 			n := BuildNumberField(v, key, field)
 			wrapper.AppendChild(n)
-			h.decorator.NumberField(n, field)
+			decorator.NumberField(n, field)
 		}
 		return nil
 	case reflect.String:
 		n := BuildStringField(v, key, field)
 		wrapper.AppendChild(n)
-		h.decorator.TextareaField(n, field)
+		decorator.TextareaField(n, field)
 		return nil
 	case reflect.Bool:
 		n := BuildBoolField(v, key, field)
 		wrapper.AppendChild(n)
-		h.decorator.CheckboxField(n, field)
+		decorator.CheckboxField(n, field)
 		return nil
 	default:
 		panic("formulate: unknown element kind: " + v.Kind().String())
@@ -427,6 +425,20 @@ func BuildStringField(v reflect.Value, key string, field StructField) *html.Node
 				Val: pattern,
 			})
 		}
+	}
+
+	if placeholder := field.Placeholder(); placeholder != "" {
+		n.Attr = append(n.Attr, html.Attribute{
+			Key: "placeholder",
+			Val: placeholder,
+		})
+	}
+
+	if field.Required() {
+		n.Attr = append(n.Attr, html.Attribute{
+			Key: "required",
+			Val: "required",
+		})
 	}
 
 	return n
@@ -614,11 +626,11 @@ func BuildRadioButtons(r RadioList, key string, field StructField, decorator Dec
 	return div
 }
 
-func (h *HTMLEncoder) formElementName(label string) string {
+func formElementName(label string) string {
 	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
 }
 
-func (h *HTMLEncoder) buildLabel(label string, parent *html.Node, field StructField) {
+func BuildLabel(label string, parent *html.Node, field StructField, decorator Decorator) {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "label",
@@ -636,10 +648,10 @@ func (h *HTMLEncoder) buildLabel(label string, parent *html.Node, field StructFi
 	})
 
 	parent.AppendChild(n)
-	h.decorator.Label(n, field)
+	decorator.Label(n, field)
 }
 
-func (h *HTMLEncoder) buildHelpText(label string, parent *html.Node, field StructField) {
+func BuildHelpText(parent *html.Node, field StructField, decorator Decorator) {
 	helpText := field.GetHelpText()
 
 	n := &html.Node{
@@ -653,7 +665,7 @@ func (h *HTMLEncoder) buildHelpText(label string, parent *html.Node, field Struc
 	})
 
 	parent.AppendChild(n)
-	h.decorator.HelpText(n, field)
+	decorator.HelpText(n, field)
 }
 
 func toString(i interface{}) string {

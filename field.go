@@ -114,6 +114,14 @@ func (sf StructField) Pattern() string {
 	return sf.Tag.Get("pattern")
 }
 
+func (sf StructField) Placeholder() string {
+	return sf.Tag.Get("placeholder")
+}
+
+func (sf StructField) Required() bool {
+	return sf.Tag.Get("required") == "true"
+}
+
 // BuildFieldset determines whether a given struct should be inside its own fieldset. Use the Struct Tag
 // show:"contents" to indicate that a fieldset should not be built for this struct.
 func (sf StructField) BuildFieldset() bool {
