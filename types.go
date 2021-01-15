@@ -55,10 +55,15 @@ type Select interface {
 type Option struct {
 	Value interface{}
 	Label string
+	Group *string
 
 	Disabled bool
 	Checked  *Condition
 	Attr     []html.Attribute
+}
+
+func OptGroup(name string) *string {
+	return &name
 }
 
 // Condition are optional booleans for Options.
