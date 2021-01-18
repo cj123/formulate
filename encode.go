@@ -505,9 +505,11 @@ func BuildSelectField(s Select, key string, field StructField) *html.Node {
 
 	optGroups := make(map[string]*html.Node)
 
-	for _, opt := range s.SelectOptions() {
+	selectOptions := s.SelectOptions()
+
+	for _, opt := range selectOptions {
 		if opt.Group == nil {
-			return nil
+			continue
 		}
 
 		if _, ok := optGroups[*opt.Group]; ok {
@@ -526,7 +528,7 @@ func BuildSelectField(s Select, key string, field StructField) *html.Node {
 		}
 	}
 
-	for _, opt := range s.SelectOptions() {
+	for _, opt := range selectOptions {
 		o := &html.Node{
 			Type: html.ElementNode,
 			Data: "option",
@@ -570,7 +572,7 @@ func BuildSelectField(s Select, key string, field StructField) *html.Node {
 
 	addedOptGroups := make(map[string]bool)
 
-	for _, opt := range s.SelectOptions() {
+	for _, opt := range selectOptions {
 		if opt.Group == nil {
 			continue
 		}
