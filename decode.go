@@ -37,6 +37,10 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 			return err
 		}
 
+		if data.Kind() == reflect.Ptr {
+			data = data.Elem()
+		}
+
 		val.Elem().Set(data)
 
 		return nil
