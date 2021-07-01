@@ -2,6 +2,8 @@ package formulate
 
 import (
 	"bytes"
+	"net/url"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -20,10 +22,60 @@ type YourDetails struct {
 	ContactMethod   ContactMethod
 	FavouriteNumber float64
 	CountryCode     string `pattern:"[A-Za-z]{3}"`
+	FavouriteFoods  FoodSelect
 
 	Address *Address
 
 	TestMap map[string]string
+}
+
+type FoodSelect []string
+
+func (f FoodSelect) SelectMultiple() bool {
+	return true
+}
+
+func (f FoodSelect) checked(val string) *Condition {
+	for _, x := range f {
+		if x == val {
+			return NewCondition(true)
+		}
+	}
+
+	return NewCondition(false)
+}
+
+func (f FoodSelect) SelectOptions() []Option {
+	return []Option{
+		{
+			Value:   "burger",
+			Label:   "burger",
+			Checked: f.checked("burger"),
+		},
+		{
+			Value:   "pizza",
+			Label:   "pizza",
+			Checked: f.checked("pizza"),
+		},
+		{
+			Value:   "beans",
+			Label:   "beans",
+			Checked: f.checked("beans"),
+		},
+		{
+			Value:   "banana",
+			Label:   "banana",
+			Checked: f.checked("banana"),
+		},
+	}
+}
+
+func (f FoodSelect) DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error) {
+	if len(values) == 0 {
+		return reflect.Value{}, nil
+	}
+
+	return reflect.ValueOf(FoodSelect(values)), nil
 }
 
 type Address struct {
@@ -36,8 +88,9 @@ type Address struct {
 }
 
 type EmbeddedStruct struct {
-	Variable string
-	Type     uint32
+	Variable        string
+	Type            uint32
+	SomeMultiselect []string
 }
 
 type Pet string
