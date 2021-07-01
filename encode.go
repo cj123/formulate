@@ -138,7 +138,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 		for i := 0; i < v.NumField(); i++ {
 			structField := v.Type().Field(i)
 
-			err := h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, StructField{structField}, parent)
+			err := h.recurse(v.Field(i), key+fieldSeparator+v.Type().Field(i).Name, StructField{structField}, parent)
 
 			if err != nil {
 				return err
