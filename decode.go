@@ -74,6 +74,12 @@ func (h *HTTPDecoder) recurse(v reflect.Value, key string, urlValues *url.Values
 	}
 
 	switch v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() && v.CanAddr() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+
+		return h.recurse(v.Elem(), key, urlValues)
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			err := h.recurse(v.Field(i), key+"."+v.Type().Field(i).Name, urlValues)
