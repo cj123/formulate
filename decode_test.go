@@ -30,9 +30,10 @@ It spans multiple lines`
 		"EmbeddedStruct.Type":     {"4838374"},
 		"TestMap":                 {`{"Foo": "Banana", "baz": "chocolate"}`},
 		"FavouriteNumber":         {"1.222"},
+		"FavouriteFoods":          {"burger", "pizza", "beans"},
 	}
 
-	var details YourDetails
+	details := YourDetails{EmbeddedStruct: EmbeddedStruct{SomeMultiselect: []string{"cake"}}}
 
 	if err := NewDecoder(vals).Decode(&details); err != nil {
 		t.Error(err)
@@ -56,6 +57,8 @@ It spans multiple lines`
 	assertEquals(t, details.Address.Country, "UK")
 	assertEquals(t, details.Type, uint32(4838374))
 	assertEquals(t, details.FavouriteNumber, 1.222)
+	assertEquals(t, len(details.SomeMultiselect), 0)
+	assertEquals(t, len(details.FavouriteFoods), 3)
 }
 
 func assertEquals(t *testing.T, a interface{}, b interface{}) {

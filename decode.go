@@ -46,13 +46,59 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 		return nil
 	}
 
+	urlValues := make(url.Values)
+	v := reflect.ValueOf(data).Elem()
+
+	err := h.recurse(v, v.Type().String(), &urlValues)
+
+	if err != nil {
+		return err
+	}
+
 	for name, vals := range h.form {
+		urlValues[name] = vals
+	}
+
+	for name, vals := range urlValues {
 		if err := h.assignFieldValues(val.Elem(), name, vals); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (h *HTTPDecoder) recurse(v reflect.Value, key string, urlValues *url.Values) error {
+	switch v.Interface().(type) {
+	case time.Time, Select, RadioList, CustomEncoder:
+		name := formElementName(key)
+		urlValues.Set(name, "")
+
+		return nil
+	}
+
+	switch v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() && v.CanAddr() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+
+		return h.recurse(v.Elem(), key, urlValues)
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			err := h.recurse(v.Field(i), key+fieldSeparator+v.Type().Field(i).Name, urlValues)
+
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		name := formElementName(key)
+		urlValues.Set(name, "")
+
+		return nil
+	}
 }
 
 const fieldSeparator = "."
@@ -149,6 +195,11 @@ func (h *HTTPDecoder) assignFieldValues(val reflect.Value, formName string, form
 		return nil
 	case reflect.Map, reflect.Slice, reflect.Array:
 		i := reflect.New(field.Type())
+
+		if formValue == "" {
+			field.Set(i.Elem())
+			return nil
+		}
 
 		if err := json.Unmarshal([]byte(formValue), i.Interface()); err != nil {
 			return err
