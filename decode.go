@@ -10,13 +10,16 @@ import (
 
 // HTTPDecoder takes a set of url values and decodes them.
 type HTTPDecoder struct {
+	showConditions
+
 	form url.Values
 }
 
 // NewDecoder creates a new HTTPDecoder.
 func NewDecoder(form url.Values) *HTTPDecoder {
 	return &HTTPDecoder{
-		form: form,
+		form:           form,
+		showConditions: make(map[string]ShowConditionFunc),
 	}
 }
 
@@ -80,10 +83,6 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string) error {
 				return nil
 			}
 
-			/*if val.IsNil() && val.CanAddr() {
-				val.Set(reflect.New(decodedFormVal.Type()))
-			}*/
-
 			val.Set(decodedFormVal)
 
 			return nil
@@ -122,6 +121,12 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string) error {
 		for i := 0; i < val.NumField(); i++ {
 			field := val.Field(i)
 			fieldType := val.Type().Field(i)
+			structField := StructField{fieldType}
+
+			if structField.Hidden(h.showConditions) {
+				// hidden fields will not be in the form, so don't decode them.
+				continue
+			}
 
 			err := h.decode(field, key+fieldSeparator+fieldType.Name)
 
