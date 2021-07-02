@@ -670,6 +670,8 @@ func BuildRadioButtons(r RadioList, key string, field StructField, decorator Dec
 	return div
 }
 
+const fieldSeparator = "."
+
 func formElementName(label string) string {
 	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
 }

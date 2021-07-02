@@ -91,6 +91,8 @@ type EmbeddedStruct struct {
 	Variable        string
 	Type            uint32
 	SomeMultiselect []string
+
+	EmptySliceTest emptySlice
 }
 
 type Pet string
