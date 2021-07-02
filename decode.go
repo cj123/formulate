@@ -5,19 +5,21 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
 // HTTPDecoder takes a set of url values and decodes them.
 type HTTPDecoder struct {
+	showConditions
+
 	form url.Values
 }
 
 // NewDecoder creates a new HTTPDecoder.
 func NewDecoder(form url.Values) *HTTPDecoder {
 	return &HTTPDecoder{
-		form: form,
+		form:           form,
+		showConditions: make(map[string]ShowConditionFunc),
 	}
 }
 
@@ -28,6 +30,12 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 
 	if val.Kind() != reflect.Ptr {
 		panic("formulate: decode target must be pointer")
+	}
+
+	elem := val.Elem()
+
+	if elem.Kind() != reflect.Struct {
+		panic("formulate: decode target underlying value must be struct")
 	}
 
 	if decoder, ok := data.(CustomDecoder); ok {
@@ -41,163 +49,168 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 			data = data.Elem()
 		}
 
-		val.Elem().Set(data)
+		elem.Set(data)
 
 		return nil
 	}
 
-	urlValues := make(url.Values)
-	v := reflect.ValueOf(data).Elem()
-
-	err := h.recurse(v, v.Type().String(), &urlValues)
-
-	if err != nil {
-		return err
-	}
-
-	for name, vals := range h.form {
-		urlValues[name] = vals
-	}
-
-	for name, vals := range urlValues {
-		if err := h.assignFieldValues(val.Elem(), name, vals); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return h.decode(elem, elem.Type().String())
 }
 
-func (h *HTTPDecoder) recurse(v reflect.Value, key string, urlValues *url.Values) error {
-	switch v.Interface().(type) {
-	case time.Time, Select, RadioList, CustomEncoder:
-		name := formElementName(key)
-		urlValues.Set(name, "")
+func (h *HTTPDecoder) getFormValues(key string) []string {
+	key = formElementName(key)
 
-		return nil
+	var vals []string
+
+	if formValues, ok := h.form[key]; ok {
+		vals = formValues
 	}
 
-	switch v.Kind() {
-	case reflect.Ptr:
-		if v.IsNil() && v.CanAddr() {
-			v.Set(reflect.New(v.Type().Elem()))
-		}
+	return vals
+}
 
-		return h.recurse(v.Elem(), key, urlValues)
+func (h *HTTPDecoder) decode(val reflect.Value, key string) error {
+	if val.CanInterface() {
+		switch a := val.Interface().(type) {
+		case CustomDecoder:
+			decodedFormVal, err := a.DecodeFormValue(h.form, key, h.getFormValues(key))
+
+			if err != nil {
+				return err
+			}
+
+			if !decodedFormVal.IsValid() {
+				return nil
+			}
+
+			val.Set(decodedFormVal)
+
+			return nil
+		case time.Time:
+			values := h.getFormValues(key)
+
+			var t time.Time
+
+			if len(values) > 0 {
+				var err error
+
+				t, err = time.Parse(timeFormat, values[0])
+
+				if err != nil {
+					return err
+				}
+			}
+
+			val.Set(reflect.ValueOf(t))
+
+			return nil
+		}
+	}
+
+	values := h.getFormValues(key)
+
+	var formValue string
+
+	if len(values) > 0 {
+		formValue = values[0]
+	}
+
+	switch val.Kind() {
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			err := h.recurse(v.Field(i), key+fieldSeparator+v.Type().Field(i).Name, urlValues)
+		// recurse over the fields
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i)
+			fieldType := val.Type().Field(i)
+			structField := StructField{fieldType}
+
+			if structField.Hidden(h.showConditions) {
+				// hidden fields will not be in the form, so don't decode them.
+				continue
+			}
+
+			err := h.decode(field, key+fieldSeparator+fieldType.Name)
 
 			if err != nil {
 				return err
 			}
 		}
 		return nil
-	default:
-		name := formElementName(key)
-		urlValues.Set(name, "")
-
-		return nil
-	}
-}
-
-const fieldSeparator = "."
-
-func (h *HTTPDecoder) assignFieldValues(val reflect.Value, formName string, formValues []string) error {
-	parts := strings.Split(formName, fieldSeparator)
-	field := val.FieldByName(parts[0])
-
-	if !field.CanSet() || len(formValues) == 0 {
-		return nil
-	}
-
-	formValue := formValues[0]
-
-	switch a := field.Interface().(type) {
-	case CustomDecoder:
-		val, err := a.DecodeFormValue(h.form, formName, formValues)
-
-		if err != nil {
-			return err
+	case reflect.Ptr:
+		// dereference ptr, decode again
+		if val.IsNil() && val.CanAddr() {
+			val.Set(reflect.New(val.Type().Elem()))
 		}
 
-		field.Set(val)
-
-		return nil
-	case time.Time:
-		t, err := time.Parse(timeFormat, formValue)
-
-		if err != nil {
-			return err
-		}
-
-		field.Set(reflect.ValueOf(t))
-
-		return nil
-	}
-
-	if field.Kind() == reflect.Ptr {
-		if field.IsNil() {
-			v := reflect.New(field.Type().Elem())
-
-			field.Set(v)
-		}
-
-		field = field.Elem()
-	}
-
-	switch field.Kind() {
-	case reflect.Struct:
-		return h.assignFieldValues(field, strings.Join(parts[1:], fieldSeparator), formValues)
+		return h.decode(val.Elem(), key)
 	case reflect.String:
-		field.SetString(formValue)
+		val.SetString(formValue)
 		return nil
 	case reflect.Float64, reflect.Float32:
-		i, err := strconv.ParseFloat(formValue, 64)
+		var f float64
+		var err error
 
-		if err != nil {
-			return err
+		if formValue != "" {
+			f, err = strconv.ParseFloat(formValue, 64)
+
+			if err != nil {
+				return err
+			}
 		}
 
-		field.SetFloat(i)
+		val.SetFloat(f)
 		return nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.ParseInt(formValue, 10, 0)
+		var i int64
+		var err error
 
-		if err != nil {
-			return err
+		if formValue != "" {
+			i, err = strconv.ParseInt(formValue, 10, 0)
+
+			if err != nil {
+				return err
+			}
 		}
 
-		field.SetInt(i)
+		val.SetInt(i)
 		return nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		i, err := strconv.ParseUint(formValue, 10, 0)
+		var i uint64
+		var err error
 
-		if err != nil {
-			return err
+		if formValue != "" {
+			i, err = strconv.ParseUint(formValue, 10, 0)
+
+			if err != nil {
+				return err
+			}
 		}
 
-		field.SetUint(i)
+		val.SetUint(i)
 		return nil
 	case reflect.Bool:
 		if formValue == "on" {
-			field.SetBool(true)
+			val.SetBool(true)
 		} else {
-			i, err := strconv.ParseInt(formValue, 10, 0)
+			var i int64
+			var err error
 
-			if err != nil {
-				return err
+			if formValue != "" {
+				i, err = strconv.ParseInt(formValue, 10, 0)
+
+				if err != nil {
+					return err
+				}
 			}
 
-			field.SetBool(i == 1)
+			val.SetBool(i == 1)
 		}
 
 		return nil
 	case reflect.Map, reflect.Slice, reflect.Array:
-		i := reflect.New(field.Type())
+		i := reflect.New(val.Type())
 
 		if formValue == "" {
-			field.Set(i.Elem())
+			val.Set(i.Elem())
 			return nil
 		}
 
@@ -205,12 +218,9 @@ func (h *HTTPDecoder) assignFieldValues(val reflect.Value, formName string, form
 			return err
 		}
 
-		field.Set(i.Elem())
+		val.Set(i.Elem())
 		return nil
 	default:
-		// @TODO warning?
-		// panic("formulate: unknown kind: " + field.Kind().String())
+		return nil
 	}
-
-	return nil
 }

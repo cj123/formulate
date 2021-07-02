@@ -131,3 +131,24 @@ func (sf StructField) BuildFieldset() bool {
 
 	return !sf.StructField.Anonymous
 }
+
+// ShowConditionFunc is a function which determines whether or not to show a form element. See: HTMLEncoder.AddShowCondition
+type ShowConditionFunc func() bool
+
+type showConditions map[string]ShowConditionFunc
+
+// AddShowCondition allows you to determine visibility of certain form elements.
+// For example, given the following struct:
+//   type Example struct {
+//     Name string
+//     SecretOption bool `show:"adminOnly"`
+//   }
+// If you wanted to make the SecretOption field only show to admins, you would call AddShowCondition as follows:
+//   AddShowCondition("adminOnly", func() bool {
+//      // some code that determines if we are 'admin'
+//   })
+// You can add multiple ShowConditions, but they must have different keys.
+// Note: ShowConditions should be added to both the Encoder and Decoder.
+func (s showConditions) AddShowCondition(key string, fn ShowConditionFunc) {
+	s[key] = fn
+}

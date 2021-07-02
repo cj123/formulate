@@ -16,13 +16,13 @@ import (
 
 // HTMLEncoder is used to generate a HTML form from a given struct.
 type HTMLEncoder struct {
+	showConditions
+
 	n *html.Node
 	w io.Writer
 
 	decorator Decorator
 	format    bool
-
-	showConditions map[string]ShowConditionFunc
 }
 
 // NewEncoder returns a HTMLEncoder which outputs to w. A Decorator can be passed to NewEncoder, which will then be used
@@ -43,7 +43,7 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 		w:              w,
 		n:              n,
 		decorator:      decorator,
-		showConditions: make(map[string]ShowConditionFunc),
+		showConditions: make(showConditions),
 	}
 }
 
@@ -51,24 +51,6 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 // Formatting is provided by the https://github.com/yosssi/gohtml package.
 func (h *HTMLEncoder) SetFormat(b bool) {
 	h.format = b
-}
-
-// ShowConditionFunc is a function which determines whether or not to show a form element. See: HTMLEncoder.AddShowCondition
-type ShowConditionFunc func() bool
-
-// AddShowCondition allows you to determine visibility of certain form elements.
-// For example, given the following struct:
-//   type Example struct {
-//     Name string
-//     SecretOption bool `show:"adminOnly"`
-//   }
-// If you wanted to make the SecretOption field only show to admins, you would call AddShowCondition as follows:
-//   AddShowCondition("adminOnly", func() bool {
-//      // some code that determines if we are 'admin'
-//   })
-// You can add multiple ShowConditions, but they must have different keys.
-func (h *HTMLEncoder) AddShowCondition(key string, fn ShowConditionFunc) {
-	h.showConditions[key] = fn
 }
 
 func errorIncorrectValue(t reflect.Type) error {
@@ -547,7 +529,7 @@ func BuildSelectField(s Select, key string, field StructField) *html.Node {
 		checked := false
 
 		if opt.Checked == nil {
-			checked = opt.Value == s
+			checked = toString(opt.Value) == toString(s)
 		} else {
 			checked = bool(*opt.Checked)
 		}
@@ -669,6 +651,8 @@ func BuildRadioButtons(r RadioList, key string, field StructField, decorator Dec
 
 	return div
 }
+
+const fieldSeparator = "."
 
 func formElementName(label string) string {
 	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
