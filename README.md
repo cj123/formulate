@@ -3,6 +3,70 @@ formulate [![Godoc][GodocSVG]][GodocURL]
 
 a HTML form builder and HTTP request to struct parser.
 
+### Example (Formulate)
+
+```go
+type Address struct {
+	HouseName       string `help:"You can leave this blank."`
+	AddressLine1    string
+	AddressLine2    string
+	Postcode        string
+	TelephoneNumber Tel
+	CountryCode     string `pattern:"[A-Za-z]{3}" validators:"countryCode"`
+}
+
+buildEncoder := func(r *http.Request, w io.Writer) *HTMLEncoder {
+	enc := NewEncoder(w, nil)
+	enc.SetFormat(true)
+
+	return enc
+}
+
+buildDecoder := func(r *http.Request, values url.Values) *HTTPDecoder {
+	dec := NewDecoder(values)
+	dec.SetValueOnValidationError(true)
+	dec.AddValidators(countryCodeValidator{})
+
+	return dec
+}
+
+handler := func(w http.ResponseWriter, r *http.Request) {
+	var addressForm Address
+
+	encodedForm, save, err := Formulate(r, &addressForm, buildEncoder, buildDecoder)
+
+	if err == nil && save {
+		// save the form here
+		http.Redirect(w, r, "/", http.StatusFound)
+	} else if err != nil {
+		http.Error(w, "Bad Form", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "text/html")
+	_, _ = w.Write(encodedForm)
+}
+
+// example validator
+type countryCodeValidator struct{}
+
+func (c countryCodeValidator) Validate(value interface{}) (ok bool, message string) {
+   switch a := value.(type) {
+   case string:
+	   if len(a) == 3 && strings.ToUpper(a) == a {
+		   return true, ""
+	   }
+	   return false, "Country codes must be 3 letters and uppercase"
+   default:
+	   return false, "invalid type"
+   }
+}
+
+func (c countryCodeValidator) TagName() string {
+	return "countryCode"
+}
+```
+
 ### Example (Encoder)
 
 ```go

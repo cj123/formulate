@@ -24,7 +24,7 @@ func (b BootstrapDecorator) RootNode(n *html.Node) {
 }
 
 func (b BootstrapDecorator) RadioButton(n *html.Node, field formulate.StructField) {
-
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) Fieldset(n *html.Node, field formulate.StructField) {
@@ -37,6 +37,7 @@ func (b BootstrapDecorator) Row(n *html.Node, field formulate.StructField) {
 
 func (b BootstrapDecorator) TextField(n *html.Node, field formulate.StructField) {
 	b.formControl(n)
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) Label(n *html.Node, field formulate.StructField) {
@@ -57,19 +58,38 @@ func (b BootstrapDecorator) formControl(n *html.Node) {
 
 func (b BootstrapDecorator) NumberField(n *html.Node, field formulate.StructField) {
 	b.formControl(n)
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) CheckboxField(n *html.Node, field formulate.StructField) {
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) TextareaField(n *html.Node, field formulate.StructField) {
 	b.formControl(n)
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) TimeField(n *html.Node, field formulate.StructField) {
 	b.formControl(n)
+	b.validation(n, field)
 }
 
 func (b BootstrapDecorator) SelectField(n *html.Node, field formulate.StructField) {
 	b.formControl(n)
+	b.validation(n, field)
+}
+
+func (b BootstrapDecorator) ValidationText(n *html.Node, field formulate.StructField) {
+	if len(field.ValidationErrors) > 0 {
+		formulate.AppendClass(n, "invalid-feedback")
+	}
+}
+
+func (b BootstrapDecorator) validation(n *html.Node, field formulate.StructField) {
+	if len(field.ValidationErrors) == 0 {
+		return
+	}
+
+	formulate.AppendClass(n, "is-invalid")
 }

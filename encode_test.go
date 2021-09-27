@@ -12,7 +12,7 @@ type YourDetails struct {
 	EmbeddedStruct
 
 	Name            string `name:"Full Name"`
-	Age             int    `step:"1" min:"0"`
+	Age             int    `step:"1" min:"0" validators:"minAge(20)"`
 	Email           Email
 	ConfirmedEmail  bool
 	Description     string `elem:"textarea"`
@@ -21,7 +21,7 @@ type YourDetails struct {
 	Pet             Pet
 	ContactMethod   ContactMethod
 	FavouriteNumber float64
-	CountryCode     string `pattern:"[A-Za-z]{3}"`
+	CountryCode     string `pattern:"[A-Za-z]{3}" validators:"countryCode"`
 	FavouriteFoods  FoodSelect
 
 	Address *Address
