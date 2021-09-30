@@ -34,6 +34,8 @@ type Decorator interface {
 	SelectField(n *html.Node, field StructField)
 	// RadioButton decorates an individual <input type="radio">
 	RadioButton(n *html.Node, field StructField)
+	// ValidationText decorates the text which is displayed below each form element when there is a validation error.
+	ValidationText(n *html.Node, field StructField)
 }
 
 type nilDecorator struct{}
@@ -63,3 +65,5 @@ func (d nilDecorator) TimeField(n *html.Node, field StructField) {}
 func (d nilDecorator) SelectField(n *html.Node, field StructField) {}
 
 func (d nilDecorator) RadioButton(n *html.Node, field StructField) {}
+
+func (d nilDecorator) ValidationText(n *html.Node, field StructField) {}

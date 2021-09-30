@@ -21,8 +21,9 @@ type HTMLEncoder struct {
 	n *html.Node
 	w io.Writer
 
-	decorator Decorator
-	format    bool
+	decorator       Decorator
+	format          bool
+	validationStore ValidationStore
 }
 
 // NewEncoder returns a HTMLEncoder which outputs to w. A Decorator can be passed to NewEncoder, which will then be used
@@ -40,10 +41,11 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 	decorator.RootNode(n)
 
 	return &HTMLEncoder{
-		w:              w,
-		n:              n,
-		decorator:      decorator,
-		showConditions: make(showConditions),
+		w:               w,
+		n:               n,
+		decorator:       decorator,
+		showConditions:  make(showConditions),
+		validationStore: nilValidationStore{},
 	}
 }
 
@@ -51,6 +53,16 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 // Formatting is provided by the https://github.com/yosssi/gohtml package.
 func (h *HTMLEncoder) SetFormat(b bool) {
 	h.format = b
+}
+
+// SetValidationStore can be used to tell the HTMLEncoder about previous validation errors. It is expected that this will be called with the
+// HTTPDecoder passed into it.
+func (h *HTMLEncoder) SetValidationStore(v ValidationStore) {
+	if v == nil {
+		return
+	}
+
+	h.validationStore = v
 }
 
 func errorIncorrectValue(t reflect.Type) error {
@@ -120,12 +132,23 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 		for i := 0; i < v.NumField(); i++ {
 			structField := v.Type().Field(i)
 
-			err := h.recurse(v.Field(i), key+fieldSeparator+v.Type().Field(i).Name, StructField{structField}, parent)
+			nextKey := key + fieldSeparator + v.Type().Field(i).Name
+
+			err := h.recurse(
+				v.Field(i),
+				nextKey,
+				StructField{
+					StructField:      structField,
+					ValidationErrors: h.validationStore.GetValidationErrors(formElementName(nextKey)),
+				},
+				parent,
+			)
 
 			if err != nil {
 				return err
 			}
 		}
+
 		return nil
 	case reflect.Slice, reflect.Array, reflect.Map:
 		buf := new(bytes.Buffer)
@@ -193,6 +216,10 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 	parent.AppendChild(rowElement)
 
 	defer func() {
+		if len(field.ValidationErrors) > 0 {
+			BuildValidationText(wrapper, field, decorator)
+		}
+
 		BuildHelpText(wrapper, field, decorator)
 		decorator.Row(rowElement, field)
 	}()
@@ -694,6 +721,29 @@ func BuildHelpText(parent *html.Node, field StructField, decorator Decorator) {
 
 	parent.AppendChild(n)
 	decorator.HelpText(n, field)
+}
+
+func BuildValidationText(parent *html.Node, field StructField, decorator Decorator) {
+	validationErrors := field.ValidationErrors
+
+	n := &html.Node{
+		Type: html.ElementNode,
+		Data: "div",
+	}
+
+	var errs []string
+
+	for _, err := range validationErrors {
+		errs = append(errs, err.Error)
+	}
+
+	n.AppendChild(&html.Node{
+		Type: html.TextNode,
+		Data: strings.Join(errs, ", "),
+	})
+
+	parent.AppendChild(n)
+	decorator.ValidationText(n, field)
 }
 
 func toString(i interface{}) string {

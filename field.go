@@ -19,6 +19,9 @@ import (
 //  - max (e.g. max:"10") - maximum value for number inputs
 //  - step (e.g. step:"0.1") - step size for number inputs
 //  - pattern (e.g. pattern:"[a-z]+" - regex pattern for text inputs
+//  - required (true/false) - adds the required attribute to the element.
+//  - placeholder (e.g. placeholder:"phone number") - indicates a placeholder for the element.
+//  - validators (e.g. "email,notempty") - which registered Validators to use.
 //
 // These can all be used in combination with one another in a struct field. A full example of the above types is:
 //
@@ -30,6 +33,9 @@ import (
 //    }
 type StructField struct {
 	reflect.StructField
+
+	// ValidationErrors are the errors present for the StructField. They are only set on an encode.
+	ValidationErrors []ValidationError
 }
 
 // GetName returns the name of the StructField, taking into account tag name overrides.
@@ -110,14 +116,17 @@ func (sf StructField) Step() string {
 	return sf.Tag.Get("step")
 }
 
+// Pattern is the regex for the input field.
 func (sf StructField) Pattern() string {
 	return sf.Tag.Get("pattern")
 }
 
+// Placeholder defines the placeholder attribute for the input field
 func (sf StructField) Placeholder() string {
 	return sf.Tag.Get("placeholder")
 }
 
+// Required indicates that an input field must be filled in.
 func (sf StructField) Required() bool {
 	return sf.Tag.Get("required") == "true"
 }
@@ -130,6 +139,19 @@ func (sf StructField) BuildFieldset() bool {
 	}
 
 	return !sf.StructField.Anonymous
+}
+
+// Validators are the TagNames of the registered Validators. Multiple Validators may be specified, separated by a comma.
+func (sf StructField) Validators() []ValidatorKey {
+	split := strings.Split(sf.Tag.Get("validators"), ",")
+
+	var keys []ValidatorKey
+
+	for _, key := range split {
+		keys = append(keys, ValidatorKey(key))
+	}
+
+	return keys
 }
 
 // ShowConditionFunc is a function which determines whether or not to show a form element. See: HTMLEncoder.AddShowCondition
