@@ -23,6 +23,8 @@ type YourDetails struct {
 	FavouriteNumber float64
 	CountryCode     string `pattern:"[A-Za-z]{3}" validators:"countryCode"`
 	FavouriteFoods  FoodSelect
+	Checkbox        bool
+	HiddenField     string `show:"-"`
 
 	Address *Address
 

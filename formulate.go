@@ -12,8 +12,10 @@ import (
 // This expects the form to be POST-ed to the same endpoint as the form is displayed on. If you require a custom
 // implementation of the form handling (including on separate endpoints), this can be done with the
 // HTMLEncoder.Encode and HTTPDecoder.Decode methods.
+// The Formulate method overrides any ValidationStore already set and uses a MemoryValidationStore instead.
 func Formulate(r *http.Request, data interface{}, encoderBuilder HTMLEncoderBuilder, decoderBuilder HTTPDecoderBuilder) (encodedForm template.HTML, passedValidation bool, err error) {
 	var decoder *HTTPDecoder
+	validationStore := NewMemoryValidationStore()
 
 	if r.Method == http.MethodPost {
 		if err = r.ParseForm(); err != nil {
@@ -21,6 +23,7 @@ func Formulate(r *http.Request, data interface{}, encoderBuilder HTMLEncoderBuil
 		}
 
 		decoder = decoderBuilder(r, r.Form)
+		decoder.SetValidationStore(validationStore)
 
 		err := decoder.Decode(data)
 
@@ -34,10 +37,7 @@ func Formulate(r *http.Request, data interface{}, encoderBuilder HTMLEncoderBuil
 	buf := new(bytes.Buffer)
 
 	encoder := encoderBuilder(r, buf)
-
-	if decoder != nil {
-		encoder.SetValidationStore(decoder)
-	}
+	encoder.SetValidationStore(validationStore)
 
 	if err := encoder.Encode(data); err != nil {
 		return "", passedValidation, err

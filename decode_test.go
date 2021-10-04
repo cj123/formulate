@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-func TestHttpDecoder_Decode(t *testing.T) {
+func TestHTTPDecoder_Decode(t *testing.T) {
 	description := `This is a long description about the customer
 
 It spans multiple lines`
@@ -35,6 +36,8 @@ It spans multiple lines`
 		"FavouriteNumber":                        {"1.222"},
 		"FavouriteFoods":                         {"burger", "pizza", "beans"},
 		"CountryCode":                            {"GBR"},
+		"Checkbox":                               {"0"},
+		"HiddenField":                            {"Content"},
 	}
 
 	details := YourDetails{EmbeddedStruct: EmbeddedStruct{SomeMultiselect: []string{"cake"}}}
@@ -69,12 +72,16 @@ It spans multiple lines`
 		assertEquals(t, len(details.SomeMultiselect), 0)
 		assertEquals(t, len(details.FavouriteFoods), 3)
 		assertEquals(t, len(details.EmptySliceTest), 0)
+		// hidden field should not be decoded, as it is hidden by a show condition
+		assertEquals(t, details.HiddenField, "")
 	})
 
 	t.Run("Validation fails", func(t *testing.T) {
 		vals.Set("CountryCode", "uk")
 
 		dec := NewDecoder(vals)
+		store := NewMemoryValidationStore()
+		dec.SetValidationStore(store)
 		dec.SetValueOnValidationError(true)
 		dec.AddValidators(&minAgeValidator{min: 20})
 		dec.AddValidators(countryCodeValidator{})
@@ -83,10 +90,72 @@ It spans multiple lines`
 			t.Fail()
 		}
 
-		if len(dec.GetValidationErrors("CountryCode")) != 1 {
+		validationErrors, err := store.GetValidationErrors("CountryCode")
+
+		if err != nil || len(validationErrors) != 1 {
 			t.Fail()
 		}
 	})
+
+	t.Run("Decode on non-ptr type", func(t *testing.T) {
+		dec := NewDecoder(nil)
+
+		out := struct{}{}
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("Expected panic() on non-ptr type.")
+			}
+		}()
+
+		_ = dec.Decode(out)
+	})
+
+	t.Run("Decode on non-struct type", func(t *testing.T) {
+		dec := NewDecoder(nil)
+
+		var out int
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("Expected panic() on non-struct type.")
+			}
+		}()
+
+		_ = dec.Decode(&out)
+	})
+
+	t.Run("Custom decoder", func(t *testing.T) {
+		dec := NewDecoder(url.Values{"CustomValue": {"1", "7", "33"}})
+
+		var out customDecoderTest
+
+		if err := dec.Decode(&out); err != nil {
+			t.Error(err)
+		}
+
+		if out[0] != 1 && out[1] != 7 && out[2] != 33 {
+			t.Fail()
+		}
+	})
+}
+
+type customDecoderTest []int
+
+func (c customDecoderTest) DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error) {
+	var out customDecoderTest
+
+	for _, value := range form["CustomValue"] {
+		i, err := strconv.ParseInt(value, 10, 0)
+
+		if err != nil {
+			return reflect.Value{}, err
+		}
+
+		out = append(out, int(i))
+	}
+
+	return reflect.ValueOf(out), nil
 }
 
 type emptySlice []string
@@ -153,4 +222,24 @@ func (c countryCodeValidator) Validate(value interface{}) (ok bool, message stri
 
 func (c countryCodeValidator) TagName() string {
 	return "countryCode"
+}
+
+func TestHTTPDecoder_SetValidationStore(t *testing.T) {
+	t.Run("Valid store", func(t *testing.T) {
+		dec := NewDecoder(nil)
+		v := NewMemoryValidationStore()
+
+		dec.SetValidationStore(v)
+
+		assertEquals(t, v, dec.validationStore)
+	})
+
+	t.Run("Nil store", func(t *testing.T) {
+		dec := NewDecoder(nil)
+		current := dec.validationStore
+
+		dec.SetValidationStore(nil)
+
+		assertEquals(t, dec.validationStore, current)
+	})
 }

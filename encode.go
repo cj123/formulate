@@ -45,7 +45,7 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 		n:               n,
 		decorator:       decorator,
 		showConditions:  make(showConditions),
-		validationStore: nilValidationStore{},
+		validationStore: NewMemoryValidationStore(),
 	}
 }
 
@@ -55,8 +55,7 @@ func (h *HTMLEncoder) SetFormat(b bool) {
 	h.format = b
 }
 
-// SetValidationStore can be used to tell the HTMLEncoder about previous validation errors. It is expected that this will be called with the
-// HTTPDecoder passed into it.
+// SetValidationStore can be used to tell the HTMLEncoder about previous validation errors.
 func (h *HTMLEncoder) SetValidationStore(v ValidationStore) {
 	if v == nil {
 		return
@@ -69,13 +68,26 @@ func errorIncorrectValue(t reflect.Type) error {
 	return fmt.Errorf("formulate: encode expects a struct value, got: %s", t.String())
 }
 
-// Encode takes a struct (or struct pointer) and produces a HTML form from all elements in the struct.
+// Encode takes a struct (or struct pointer) and produces an HTML form from all elements in the struct.
 // The encoder deals with most simple types and structs, but more complex types (maps, slices, arrays)
 // will render as a JSON blob in a <textarea>.
 //
 // The rendering behavior of any element can be replaced by implementing the CustomEncoder interface.
-func (h *HTMLEncoder) Encode(i interface{}) error {
+// Encode calls will clear the ValidationStore, regardless of error state.
+func (h *HTMLEncoder) Encode(i interface{}) (err error) {
+	defer func() {
+		clearValidationStoreErr := h.validationStore.ClearValidationErrors()
+
+		if err == nil {
+			err = clearValidationStoreErr
+		}
+	}()
+
 	v := reflect.ValueOf(i)
+
+	if err := h.validationStore.GetFormValue(i); err == nil && i != nil {
+		v = reflect.ValueOf(i)
+	}
 
 	if v.Kind() == reflect.Ptr {
 		if !v.IsValid() || v.Elem().Kind() != reflect.Struct {
@@ -134,12 +146,18 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 			nextKey := key + fieldSeparator + v.Type().Field(i).Name
 
-			err := h.recurse(
+			validationErrors, err := h.validationStore.GetValidationErrors(formElementName(nextKey))
+
+			if err != nil {
+				return err
+			}
+
+			err = h.recurse(
 				v.Field(i),
 				nextKey,
 				StructField{
 					StructField:      structField,
-					ValidationErrors: h.validationStore.GetValidationErrors(formElementName(nextKey)),
+					ValidationErrors: validationErrors,
 				},
 				parent,
 			)
