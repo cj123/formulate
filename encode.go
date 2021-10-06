@@ -131,6 +131,8 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 		}
 
 		return h.recurse(v.Elem(), key, field, parent)
+	case reflect.Interface:
+		return h.recurse(v.Elem(), key, field, parent)
 	case reflect.Struct:
 		if field.Hidden(h.showConditions) {
 			return nil

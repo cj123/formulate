@@ -221,6 +221,8 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		}
 
 		return h.decode(val.Elem(), key, validators)
+	case reflect.Interface:
+		return h.decode(val.Elem(), key, validators)
 	case reflect.String:
 		if ok, err := h.passedValidation(key, formValue, validators); ok && err == nil {
 			val.SetString(formValue)
