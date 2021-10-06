@@ -31,17 +31,26 @@ func NewStore(r *http.Request, w http.ResponseWriter, store sessions.Store, sess
 	}
 }
 
-func (s *Store) getSession() *sessions.Session {
-	x, _ := s.sessionsStore.Get(s.r, s.sessionName)
+func (s *Store) getSession() (*sessions.Session, error) {
+	x, err := s.sessionsStore.Get(s.r, s.sessionName)
+
+	if err != nil {
+		return nil, err
+	}
+
 	x.Options.SameSite = http.SameSiteLaxMode
 
-	return x
+	return x, nil
 }
 
 var ErrValidationErrorTypeAssertionFailed = errors.New("sessions: validation error type assertion failed")
 
 func (s *Store) GetValidationErrors(field string) ([]formulate.ValidationError, error) {
-	sess := s.getSession()
+	sess, err := s.getSession()
+
+	if err != nil {
+		return nil, err
+	}
 
 	vals, ok := sess.Values[field]
 
@@ -67,14 +76,24 @@ func (s *Store) AddValidationError(field string, validationError formulate.Valid
 
 	vals = append(vals, validationError)
 
-	sess := s.getSession()
+	sess, err := s.getSession()
+
+	if err != nil {
+		return err
+	}
+
 	sess.Values[field] = vals
 
 	return s.sessionsStore.Save(s.r, s.w, sess)
 }
 
 func (s *Store) ClearValidationErrors() error {
-	sess := s.getSession()
+	sess, err := s.getSession()
+
+	if err != nil {
+		return err
+	}
+
 	sess.Values = nil
 	sess.Options.MaxAge = -1 // delete
 
@@ -82,7 +101,11 @@ func (s *Store) ClearValidationErrors() error {
 }
 
 func (s *Store) SetFormValue(i interface{}) error {
-	sess := s.getSession()
+	sess, err := s.getSession()
+
+	if err != nil {
+		return err
+	}
 
 	b, err := json.Marshal(i)
 
@@ -98,7 +121,11 @@ func (s *Store) SetFormValue(i interface{}) error {
 var ErrInvalidValue = errors.New("sessions: invalid value")
 
 func (s *Store) GetFormValue(out interface{}) (err error) {
-	sess := s.getSession()
+	sess, err := s.getSession()
+
+	if err != nil {
+		return err
+	}
 
 	defer func() {
 		delete(sess.Values, "value")
