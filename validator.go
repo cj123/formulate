@@ -51,7 +51,7 @@ type ValidationStore interface {
 	// ClearValidationErrors removes all validation errors from the store
 	ClearValidationErrors() error
 
-	// SetFormValue saves the posted form value
+	// SetFormValue saves the posted form value. It is only called if there are validation errors.
 	SetFormValue(val interface{}) error
 
 	// GetFormValue unmarshals the posted form value into the out interface.

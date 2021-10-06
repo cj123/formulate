@@ -110,11 +110,11 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 		return err
 	}
 
-	if err := h.validationStore.SetFormValue(data); err != nil {
-		return err
-	}
-
 	if h.numValidationErrors > 0 {
+		if err := h.validationStore.SetFormValue(data); err != nil {
+			return err
+		}
+
 		return ErrFormFailedValidation
 	}
 
