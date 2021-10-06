@@ -138,6 +138,22 @@ It spans multiple lines`
 			t.Fail()
 		}
 	})
+
+	t.Run("Decode into interface{} as struct field", func(t *testing.T) {
+		type test struct {
+			Data interface{}
+		}
+
+		x := test{Data: "this is a string"}
+
+		dec := NewDecoder(url.Values{"Data": {"new string"}})
+
+		if err := dec.Decode(&x); err != nil {
+			t.Error(err)
+		}
+
+		assertEquals(t, x.Data, "new string")
+	})
 }
 
 type customDecoderTest []int
