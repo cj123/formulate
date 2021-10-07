@@ -3,6 +3,7 @@ package formulate
 import (
 	"errors"
 	"net/url"
+	"reflect"
 )
 
 // Validator is an interface that allows individual form fields to be validated as part of the Decode phase of a formulate
@@ -42,11 +43,79 @@ type ValidationError struct {
 // ValidationStore is a data store for the validation errors
 type ValidationStore interface {
 	// GetValidationErrors returns the errors for a given field.
-	GetValidationErrors(field string) []ValidationError
+	GetValidationErrors(field string) ([]ValidationError, error)
+
+	// AddValidationError adds a validation error to the store
+	AddValidationError(field string, validationError ValidationError) error
+
+	// ClearValidationErrors removes all validation errors from the store
+	ClearValidationErrors() error
+
+	// SetFormValue saves the posted form value. It is only called if there are validation errors.
+	SetFormValue(val interface{}) error
+
+	// GetFormValue unmarshals the posted form value into the out interface.
+	GetFormValue(out interface{}) error
 }
 
-type nilValidationStore struct{}
+type MemoryValidationStore struct {
+	validationErrors map[string][]ValidationError
 
-func (n nilValidationStore) GetValidationErrors(_ string) []ValidationError {
+	val interface{}
+}
+
+func NewMemoryValidationStore() *MemoryValidationStore {
+	return &MemoryValidationStore{
+		validationErrors: make(map[string][]ValidationError),
+	}
+}
+
+func (m *MemoryValidationStore) GetValidationErrors(field string) ([]ValidationError, error) {
+	validationErrors, ok := m.validationErrors[field]
+
+	if !ok {
+		return nil, nil
+	}
+
+	return validationErrors, nil
+}
+
+func (m *MemoryValidationStore) AddValidationError(field string, validationError ValidationError) error {
+	m.validationErrors[field] = append(m.validationErrors[field], validationError)
+
+	return nil
+}
+
+func (m *MemoryValidationStore) ClearValidationErrors() error {
+	m.validationErrors = make(map[string][]ValidationError)
+
+	return nil
+}
+
+func (m *MemoryValidationStore) SetFormValue(val interface{}) error {
+	m.val = val
+
+	return nil
+}
+
+func (m *MemoryValidationStore) GetFormValue(out interface{}) error {
+	if m.val == nil {
+		return nil
+	}
+
+	v := reflect.ValueOf(out)
+
+	if v.Kind() != reflect.Ptr {
+		panic("formulate: GetFormValue target must be pointer")
+	}
+
+	savedVal := reflect.ValueOf(m.val)
+
+	if savedVal.Kind() == reflect.Ptr {
+		v.Elem().Set(savedVal.Elem())
+	} else {
+		v.Elem().Set(savedVal)
+	}
+
 	return nil
 }

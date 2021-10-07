@@ -15,8 +15,9 @@ type HTTPDecoder struct {
 	form url.Values
 
 	validators                map[ValidatorKey]Validator
-	validationErrors          map[string][]ValidationError
+	validationStore           ValidationStore
 	setValueOnValidationError bool
+	numValidationErrors       int
 }
 
 // NewDecoder creates a new HTTPDecoder.
@@ -26,9 +27,17 @@ func NewDecoder(form url.Values) *HTTPDecoder {
 		form:           form,
 
 		validators:                make(map[ValidatorKey]Validator),
-		validationErrors:          make(map[string][]ValidationError),
+		validationStore:           NewMemoryValidationStore(),
 		setValueOnValidationError: false,
 	}
+}
+
+func (h *HTTPDecoder) SetValidationStore(v ValidationStore) {
+	if v == nil {
+		return
+	}
+
+	h.validationStore = v
 }
 
 // SetValueOnValidationError indicates whether a form value should be set in the form if there was a validation error on that value.
@@ -59,28 +68,6 @@ func (h *HTTPDecoder) getValidators(keys []ValidatorKey) []Validator {
 	return validators
 }
 
-// GetValidationErrors returns the validation errors for the form element specified by field.
-func (h *HTTPDecoder) GetValidationErrors(field string) []ValidationError {
-	if h.validationErrors == nil {
-		return nil
-	}
-
-	err, ok := h.validationErrors[field]
-
-	if !ok {
-		return nil
-	}
-
-	return err
-}
-
-func (h *HTTPDecoder) addValidationError(field string, value interface{}, message string) {
-	h.validationErrors[field] = append(h.validationErrors[field], ValidationError{
-		Value: value,
-		Error: message,
-	})
-}
-
 // Decode the given values into a provided interface{}. Note that the underlying
 // value must be a pointer.
 func (h *HTTPDecoder) Decode(data interface{}) error {
@@ -91,10 +78,6 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 	}
 
 	elem := val.Elem()
-
-	if elem.Kind() != reflect.Struct {
-		panic("formulate: decode target underlying value must be struct")
-	}
 
 	// look for FormAwareValidators and set the form before we decode the data.
 	for _, validator := range h.validators {
@@ -119,11 +102,19 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 		return nil
 	}
 
+	if elem.Kind() != reflect.Struct {
+		panic("formulate: decode target underlying value must be struct")
+	}
+
 	if err := h.decode(elem, elem.Type().String(), nil); err != nil {
 		return err
 	}
 
-	if len(h.validationErrors) > 0 {
+	if h.numValidationErrors > 0 {
+		if err := h.validationStore.SetFormValue(data); err != nil {
+			return err
+		}
+
 		return ErrFormFailedValidation
 	}
 
@@ -159,8 +150,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 			if decodedFormVal.CanInterface() {
 				i := decodedFormVal.Interface()
 
-				if h.passedValidation(key, i, validators) {
+				if ok, err := h.passedValidation(key, i, validators); ok && err == nil {
 					val.Set(decodedFormVal)
+				} else if err != nil {
+					return err
 				}
 			} else {
 				// validation is not possible
@@ -183,8 +176,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 				}
 			}
 
-			if h.passedValidation(key, t, validators) {
+			if ok, err := h.passedValidation(key, t, validators); ok && err == nil {
 				val.Set(reflect.ValueOf(t))
+			} else if err != nil {
+				return err
 			}
 
 			return nil
@@ -226,9 +221,20 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		}
 
 		return h.decode(val.Elem(), key, validators)
+	case reflect.Interface:
+		n := reflect.New(val.Elem().Type())
+
+		if err := h.decode(n, key, validators); err != nil {
+			return err
+		}
+
+		val.Set(n.Elem())
+		return nil
 	case reflect.String:
-		if h.passedValidation(key, formValue, validators) {
+		if ok, err := h.passedValidation(key, formValue, validators); ok && err == nil {
 			val.SetString(formValue)
+		} else if err != nil {
+			return err
 		}
 
 		return nil
@@ -244,8 +250,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 			}
 		}
 
-		if h.passedValidation(key, f, validators) {
+		if ok, err := h.passedValidation(key, f, validators); ok && err == nil {
 			val.SetFloat(f)
+		} else if err != nil {
+			return err
 		}
 
 		return nil
@@ -261,8 +269,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 			}
 		}
 
-		if h.passedValidation(key, i, validators) {
+		if ok, err := h.passedValidation(key, i, validators); ok && err == nil {
 			val.SetInt(i)
+		} else if err != nil {
+			return err
 		}
 
 		return nil
@@ -278,8 +288,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 			}
 		}
 
-		if h.passedValidation(key, i, validators) {
+		if ok, err := h.passedValidation(key, i, validators); ok && err == nil {
 			val.SetUint(i)
+		} else if err != nil {
+			return err
 		}
 
 		return nil
@@ -300,8 +312,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 
 			b := i == 1
 
-			if h.passedValidation(key, b, validators) {
+			if ok, err := h.passedValidation(key, b, validators); ok && err == nil {
 				val.SetBool(b)
+			} else if err != nil {
+				return err
 			}
 		}
 
@@ -325,17 +339,27 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 	}
 }
 
-func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators []Validator) bool {
+func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators []Validator) (bool, error) {
 	ok := true
 
 	for _, validator := range validators {
 		valid, message := validator.Validate(value)
 
 		if !valid {
-			h.addValidationError(formElementName(key), value, message)
+			h.numValidationErrors++
+
+			err := h.validationStore.AddValidationError(formElementName(key), ValidationError{
+				Value: value,
+				Error: message,
+			})
+
+			if err != nil {
+				return ok, err
+			}
+
 			ok = false
 		}
 	}
 
-	return ok || h.setValueOnValidationError
+	return ok || h.setValueOnValidationError, nil
 }
