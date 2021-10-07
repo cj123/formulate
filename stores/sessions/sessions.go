@@ -4,7 +4,9 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
+	"os"
 
 	"github.com/cj123/formulate"
 	"github.com/cj123/sessions"
@@ -107,13 +109,13 @@ func (s *Store) SetFormValue(i interface{}) error {
 		return err
 	}
 
-	b, err := json.Marshal(i)
+	filename, err := s.persistFormValue(i)
 
 	if err != nil {
 		return err
 	}
 
-	sess.Values["value"] = b
+	sess.Values["form_value"] = filename
 
 	return s.sessionsStore.Save(s.r, s.w, sess)
 }
@@ -128,7 +130,7 @@ func (s *Store) GetFormValue(out interface{}) (err error) {
 	}
 
 	defer func() {
-		delete(sess.Values, "value")
+		delete(sess.Values, "form_value")
 
 		saveErr := s.sessionsStore.Save(s.r, s.w, sess)
 
@@ -137,17 +139,51 @@ func (s *Store) GetFormValue(out interface{}) (err error) {
 		}
 	}()
 
-	val, ok := sess.Values["value"]
+	val, ok := sess.Values["form_value"]
 
 	if !ok {
 		return ErrInvalidValue
 	}
 
-	b, ok := val.([]byte)
+	name, ok := val.(string)
 
 	if !ok {
 		return ErrInvalidValue
 	}
 
-	return json.Unmarshal(b, out)
+	return s.readFormValue(name, out)
+}
+
+func (s *Store) persistFormValue(val interface{}) (name string, err error) {
+	file, err := ioutil.TempFile("", "formulate_val_*")
+
+	if err != nil {
+		return "", err
+	}
+
+	defer file.Close()
+
+	if err := json.NewEncoder(file).Encode(val); err != nil {
+		return "", err
+	}
+
+	return file.Name(), nil
+}
+
+func (s *Store) readFormValue(name string, out interface{}) (err error) {
+	file, err := os.Open(name)
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		err = file.Close()
+
+		if err == nil {
+			err = os.Remove(name)
+		}
+	}()
+
+	return json.NewDecoder(file).Decode(out)
 }
