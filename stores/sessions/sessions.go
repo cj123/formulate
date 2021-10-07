@@ -16,6 +16,10 @@ func init() {
 	gob.Register([]formulate.ValidationError{})
 }
 
+// Store implements formulate.ValidationStore using a combination of both HTTP session and filesystem.
+// ValidationErrors are stored in the HTTP session, but the FormValue is stored in the os.TempDir() in a
+// JSON encoded blob, with the filename formulate_val_* where * is replaced by a random string. The filesystem
+// storage is used as the session storage is limited to 4096 bytes in most browsers.
 type Store struct {
 	r             *http.Request
 	w             http.ResponseWriter
