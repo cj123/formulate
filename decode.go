@@ -186,14 +186,6 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		}
 	}
 
-	values := h.getFormValues(key)
-
-	var formValue string
-
-	if len(values) > 0 {
-		formValue = values[0]
-	}
-
 	switch val.Kind() {
 	case reflect.Struct:
 		// recurse over the fields
@@ -223,13 +215,29 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		return h.decode(val.Elem(), key, validators)
 	case reflect.Interface:
 		n := reflect.New(val.Elem().Type())
+		n.Elem().Set(val.Elem())
 
 		if err := h.decode(n, key, validators); err != nil {
 			return err
 		}
 
 		val.Set(n.Elem())
+
 		return nil
+	}
+
+	values := h.getFormValues(key)
+
+	if len(values) == 0 {
+		// below we are dealing with concrete types that do not call decode recursively.
+		// if there are no values in the form for these types, do not decode them. this
+		// prevents 'default' values from being overwritten with empty values.
+		return nil
+	}
+
+	formValue := values[0]
+
+	switch val.Kind() {
 	case reflect.String:
 		if ok, err := h.passedValidation(key, formValue, validators); ok && err == nil {
 			val.SetString(formValue)

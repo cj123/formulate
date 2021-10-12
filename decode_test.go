@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,12 +33,13 @@ It spans multiple lines`
 		joinFields("Address", "TelephoneNumber"): {"012345678910"},
 		joinFields("Address", "Country"):         {"UK"},
 		joinFields("EmbeddedStruct", "Type"):     {"4838374"},
-		"TestMap":                                {`{"Foo": "Banana", "baz": "chocolate"}`},
-		"FavouriteNumber":                        {"1.222"},
-		"FavouriteFoods":                         {"burger", "pizza", "beans"},
-		"CountryCode":                            {"GBR"},
-		"Checkbox":                               {"0"},
-		"HiddenField":                            {"Content"},
+		joinFields("EmbeddedStruct", "SomeMultiselect"): {"[]"},
+		"TestMap":         {`{"Foo": "Banana", "baz": "chocolate"}`},
+		"FavouriteNumber": {"1.222"},
+		"FavouriteFoods":  {"burger", "pizza", "beans"},
+		"CountryCode":     {"GBR"},
+		"Checkbox":        {"0"},
+		"HiddenField":     {"Content"},
 	}
 
 	details := YourDetails{EmbeddedStruct: EmbeddedStruct{SomeMultiselect: []string{"cake"}}}
@@ -69,6 +71,7 @@ It spans multiple lines`
 		assertEquals(t, details.Address.Country, "UK")
 		assertEquals(t, details.Type, uint32(4838374))
 		assertEquals(t, details.FavouriteNumber, 1.222)
+		assertEquals(t, details.Type, uint32(4838374))
 		assertEquals(t, len(details.SomeMultiselect), 0)
 		assertEquals(t, len(details.FavouriteFoods), 3)
 		assertEquals(t, len(details.EmptySliceTest), 0)
@@ -154,6 +157,39 @@ It spans multiple lines`
 
 		assertEquals(t, x.Data, "new string")
 	})
+
+	t.Run("Decode without losing value in interface{}", func(t *testing.T) {
+		type testData struct {
+			Value string
+		}
+
+		type test struct {
+			Data interface{}
+		}
+
+		x := test{Data: &testData{Value: "this is a string"}}
+
+		dec := NewDecoder(url.Values{})
+
+		if err := dec.Decode(&x); err != nil {
+			t.Error(err)
+			return
+		}
+
+		if x.Data == nil {
+			t.Fail()
+			return
+		}
+
+		v, ok := x.Data.(*testData)
+
+		if !ok || v == nil {
+			t.Fail()
+			return
+		}
+
+		assertEquals(t, v.Value, "this is a string")
+	})
 }
 
 type customDecoderTest []int
@@ -189,7 +225,14 @@ func assertEquals(t *testing.T, a interface{}, b interface{}) {
 		return
 	}
 
-	t.Logf("failed to assert that '%v' == '%v'", a, b)
+	_, file, line, ok := runtime.Caller(1)
+
+	if ok {
+		t.Logf("%s:%d : failed to assert that '%v' == '%v'", file, line, a, b)
+	} else {
+		t.Logf("failed to assert that '%v' == '%v'", a, b)
+	}
+
 	t.Fail()
 }
 
