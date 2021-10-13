@@ -42,6 +42,10 @@ type StructField struct {
 func (sf StructField) GetName() string {
 	tagName := sf.Tag.Get("name")
 
+	if tagName == "-" {
+		return ""
+	}
+
 	if tagName != "" {
 		return tagName
 	}
