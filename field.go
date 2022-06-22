@@ -12,7 +12,9 @@ import (
 //
 //  - name (e.g. name:"Phone Number") - this overwrites the name used in the label. This value can be left empty.
 //  - help (e.g. help:"Enter your phone number, including area code") - this text is displayed alongside the input field as a prompt.
-//  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details. if "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
+//  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details.
+//    If "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
+//    If "fieldset" is used, anonymous structs will be built as fieldsets too, if their name is also set.
 //  - type (e.g. type:"tel") - sets the HTML input "type" attribute
 //  - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
 //  - min (e.g. min:"0") - minimum value for number inputs
@@ -136,10 +138,16 @@ func (sf StructField) Required() bool {
 }
 
 // BuildFieldset determines whether a given struct should be inside its own fieldset. Use the Struct Tag
-// show:"contents" to indicate that a fieldset should not be built for this struct.
+// show:"contents" to indicate that a fieldset should not be built for this struct. Use show:"fieldset"
+// to indicate that anonymous structs should be built in a fieldset.
 func (sf StructField) BuildFieldset() bool {
-	if sf.Tag.Get("show") == "contents" {
+	showTag := sf.Tag.Get("show")
+
+	if showTag == "contents" {
 		return false
+	} else if showTag == "fieldset" {
+		// allow anonymous structs to be built in a fieldset
+		return true
 	}
 
 	return !sf.StructField.Anonymous
