@@ -278,7 +278,13 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 	case reflect.String:
 		n := BuildStringField(v, key, field)
 		wrapper.AppendChild(n)
-		decorator.TextareaField(n, field)
+
+		if field.Elem() == "textarea" {
+			decorator.TextareaField(n, field)
+		} else {
+			decorator.TextField(n, field)
+		}
+
 		return nil
 	case reflect.Bool:
 		n := BuildBoolField(v, key, field)
