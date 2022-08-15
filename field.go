@@ -15,7 +15,7 @@ import (
 //  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details.
 //    If "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
 //    If "fieldset" is used, anonymous structs will be built as fieldsets too, if their name is also set.
-//  - type (e.g. type:"tel") - sets the HTML input "type" attribute
+//  - type (e.g. type:"tel", type:"hidden") - sets the HTML input "type" attribute. type:"hidden" will be rendered without labels and help text.
 //  - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
 //  - min (e.g. min:"0") - minimum value for number inputs
 //  - max (e.g. max:"10") - maximum value for number inputs
@@ -86,7 +86,7 @@ func (sf StructField) InputType(original string) string {
 	return original
 }
 
-// Elem returns the element to be used. Currently the only supported value is <textarea>.
+// Elem returns the element to be used. Currently, the only supported value is <textarea>.
 // <input> will be used if not specified.
 func (sf StructField) Elem() string {
 	return sf.Tag.Get("elem")
