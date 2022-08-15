@@ -24,7 +24,8 @@ type YourDetails struct {
 	CountryCode     string `pattern:"[A-Za-z]{3}" validators:"countryCode"`
 	FavouriteFoods  FoodSelect
 	Checkbox        bool
-	HiddenField     string `show:"-"`
+	IgnoredField    string `show:"-"`
+	HiddenInput     string `type:"hidden"`
 
 	Address *Address
 
@@ -178,6 +179,7 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 			"Foo": "foo",
 			"Bar": "bar",
 		},
+		HiddenInput: "hidden-val",
 	}); err != nil {
 		t.Error(err)
 	}
@@ -186,5 +188,5 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 		panic(err)
 	}
 
-	//fmt.Println(buf.String())
+	// fmt.Println(buf.String())
 }

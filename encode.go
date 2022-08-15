@@ -219,30 +219,37 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 		return nil
 	}
 
-	rowElement := &html.Node{
-		Type: html.ElementNode,
-		Data: "div",
-	}
+	var wrapper *html.Node
 
-	BuildLabel(key, rowElement, field, decorator)
-	wrapper := &html.Node{
-		Type: html.ElementNode,
-		Data: "div",
-	}
-
-	rowElement.AppendChild(wrapper)
-	decorator.FieldWrapper(wrapper, field)
-
-	parent.AppendChild(rowElement)
-
-	defer func() {
-		if len(field.ValidationErrors) > 0 {
-			BuildValidationText(wrapper, field, decorator)
+	if field.InputType("") == "hidden" {
+		// hidden input fields have no other page furniture.
+		wrapper = parent
+	} else {
+		rowElement := &html.Node{
+			Type: html.ElementNode,
+			Data: "div",
 		}
 
-		BuildHelpText(wrapper, field, decorator)
-		decorator.Row(rowElement, field)
-	}()
+		BuildLabel(key, rowElement, field, decorator)
+		wrapper = &html.Node{
+			Type: html.ElementNode,
+			Data: "div",
+		}
+
+		rowElement.AppendChild(wrapper)
+		decorator.FieldWrapper(wrapper, field)
+
+		parent.AppendChild(rowElement)
+
+		defer func() {
+			if len(field.ValidationErrors) > 0 {
+				BuildValidationText(wrapper, field, decorator)
+			}
+
+			BuildHelpText(wrapper, field, decorator)
+			decorator.Row(rowElement, field)
+		}()
+	}
 
 	switch a := v.Interface().(type) {
 	case CustomEncoder:

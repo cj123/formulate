@@ -39,7 +39,8 @@ It spans multiple lines`
 		"FavouriteFoods":  {"burger", "pizza", "beans"},
 		"CountryCode":     {"GBR"},
 		"Checkbox":        {"0"},
-		"HiddenField":     {"Content"},
+		"IgnoredField":    {"Content"},
+		"HiddenInput":     {"test"},
 	}
 
 	details := YourDetails{EmbeddedStruct: EmbeddedStruct{SomeMultiselect: []string{"cake"}}}
@@ -75,8 +76,9 @@ It spans multiple lines`
 		assertEquals(t, len(details.SomeMultiselect), 0)
 		assertEquals(t, len(details.FavouriteFoods), 3)
 		assertEquals(t, len(details.EmptySliceTest), 0)
-		// hidden field should not be decoded, as it is hidden by a show condition
-		assertEquals(t, details.HiddenField, "")
+		assertEquals(t, details.HiddenInput, "test")
+		// ignored field should not be decoded, as it is hidden by a show condition
+		assertEquals(t, details.IgnoredField, "")
 	})
 
 	t.Run("Validation fails", func(t *testing.T) {
