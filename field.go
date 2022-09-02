@@ -62,13 +62,15 @@ func (sf StructField) GetHelpText() string {
 
 // Hidden determines if a StructField is hidden based on the showConditions.
 func (sf StructField) Hidden(showConditions map[string]ShowConditionFunc) bool {
-	show := sf.Tag.Get("show")
+	showTag := sf.Tag.Get("show")
 
-	if conditionFunc, ok := showConditions[show]; ok {
-		return !conditionFunc()
+	for _, tag := range strings.Split(showTag, ",") {
+		if conditionFunc, ok := showConditions[tag]; ok {
+			return !conditionFunc()
+		}
 	}
 
-	return show == "-"
+	return showTag == "-"
 }
 
 func camelCase(s string) string {
@@ -143,11 +145,13 @@ func (sf StructField) Required() bool {
 func (sf StructField) BuildFieldset() bool {
 	showTag := sf.Tag.Get("show")
 
-	if showTag == "contents" {
-		return false
-	} else if showTag == "fieldset" {
-		// allow anonymous structs to be built in a fieldset
-		return true
+	for _, tag := range strings.Split(showTag, ",") {
+		if tag == "contents" {
+			return false
+		} else if tag == "fieldset" {
+			// allow anonymous structs to be built in a fieldset
+			return true
+		}
 	}
 
 	return !sf.StructField.Anonymous
