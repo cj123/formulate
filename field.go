@@ -10,29 +10,29 @@ import (
 // StructField is a wrapper around the reflect.StructField type. The rendering behavior of form elements is controlled
 // by Struct Tags. The following tags are currently available:
 //
-//  - name (e.g. name:"Phone Number") - this overwrites the name used in the label. This value can be left empty.
-//  - help (e.g. help:"Enter your phone number, including area code") - this text is displayed alongside the input field as a prompt.
-//  - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details.
-//    If "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
-//    If "fieldset" is used, anonymous structs will be built as fieldsets too, if their name is also set.
-//  - type (e.g. type:"tel", type:"hidden") - sets the HTML input "type" attribute. type:"hidden" will be rendered without labels and help text.
-//  - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
-//  - min (e.g. min:"0") - minimum value for number inputs
-//  - max (e.g. max:"10") - maximum value for number inputs
-//  - step (e.g. step:"0.1") - step size for number inputs
-//  - pattern (e.g. pattern:"[a-z]+" - regex pattern for text inputs
-//  - required (true/false) - adds the required attribute to the element.
-//  - placeholder (e.g. placeholder:"phone number") - indicates a placeholder for the element.
-//  - validators (e.g. "email,notempty") - which registered Validators to use.
+//   - name (e.g. name:"Phone Number") - this overwrites the name used in the label. This value can be left empty.
+//   - help (e.g. help:"Enter your phone number, including area code") - this text is displayed alongside the input field as a prompt.
+//   - show (e.g. show:"adminOnly") - controls visibility of elements. See HTMLEncoder.AddShowCondition for more details.
+//     If "contents" is used, the field is shown and the parent fieldset (if any) will be omitted.
+//     If "fieldset" is used, anonymous structs will be built as fieldsets too, if their name is also set.
+//   - type (e.g. type:"tel", type:"hidden") - sets the HTML input "type" attribute. type:"hidden" will be rendered without labels and help text.
+//   - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
+//   - min (e.g. min:"0") - minimum value for number inputs
+//   - max (e.g. max:"10") - maximum value for number inputs
+//   - step (e.g. step:"0.1") - step size for number inputs
+//   - pattern (e.g. pattern:"[a-z]+" - regex pattern for text inputs
+//   - required (true/false) - adds the required attribute to the element.
+//   - placeholder (e.g. placeholder:"phone number") - indicates a placeholder for the element.
+//   - validators (e.g. "email,notempty") - which registered Validators to use.
 //
 // These can all be used in combination with one another in a struct field. A full example of the above types is:
 //
-//    type Address struct {
-//        HouseNumber          int `min:"0" help:"Please enter your house number" name:"House Number (if any)"
-//        AddressLine1         string
-//        DeliveryInstructions string `elem:"textarea"`
-//        CountryCode          string `pattern:"[A-Za-z]{3}"`
-//    }
+//	type Address struct {
+//	    HouseNumber          int `min:"0" help:"Please enter your house number" name:"House Number (if any)"
+//	    AddressLine1         string
+//	    DeliveryInstructions string `elem:"textarea"`
+//	    CountryCode          string `pattern:"[A-Za-z]{3}"`
+//	}
 type StructField struct {
 	reflect.StructField
 
@@ -139,6 +139,10 @@ func (sf StructField) Required() bool {
 	return sf.Tag.Get("required") == "true"
 }
 
+func (sf StructField) IsExported() bool {
+	return sf.StructField.PkgPath == ""
+}
+
 // BuildFieldset determines whether a given struct should be inside its own fieldset. Use the Struct Tag
 // show:"contents" to indicate that a fieldset should not be built for this struct. Use show:"fieldset"
 // to indicate that anonymous structs should be built in a fieldset.
@@ -177,14 +181,18 @@ type showConditions map[string]ShowConditionFunc
 
 // AddShowCondition allows you to determine visibility of certain form elements.
 // For example, given the following struct:
-//   type Example struct {
-//     Name string
-//     SecretOption bool `show:"adminOnly"`
-//   }
+//
+//	type Example struct {
+//	  Name string
+//	  SecretOption bool `show:"adminOnly"`
+//	}
+//
 // If you wanted to make the SecretOption field only show to admins, you would call AddShowCondition as follows:
-//   AddShowCondition("adminOnly", func() bool {
-//      // some code that determines if we are 'admin'
-//   })
+//
+//	AddShowCondition("adminOnly", func() bool {
+//	   // some code that determines if we are 'admin'
+//	})
+//
 // You can add multiple ShowConditions, but they must have different keys.
 // Note: ShowConditions should be added to both the Encoder and Decoder.
 func (s showConditions) AddShowCondition(key string, fn ShowConditionFunc) {

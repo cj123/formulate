@@ -30,6 +30,9 @@ type YourDetails struct {
 	Address *Address
 
 	TestMap map[string]string
+
+	_               string
+	unexportedField string
 }
 
 type FoodSelect []string

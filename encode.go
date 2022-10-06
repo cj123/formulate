@@ -119,9 +119,15 @@ func (h *HTMLEncoder) Encode(i interface{}) (err error) {
 }
 
 func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, parent *html.Node) error {
-	switch v.Interface().(type) {
-	case time.Time, Select, RadioList, CustomEncoder:
-		return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
+	if !field.IsExported() {
+		return nil
+	}
+
+	if v.CanInterface() {
+		switch v.Interface().(type) {
+		case time.Time, Select, RadioList, CustomEncoder:
+			return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
+		}
 	}
 
 	switch v.Kind() {
@@ -251,23 +257,25 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 		}()
 	}
 
-	switch a := v.Interface().(type) {
-	case CustomEncoder:
-		return a.BuildFormElement(key, wrapper, field, decorator)
-	case time.Time:
-		n := BuildTimeField(a, key, field)
-		wrapper.AppendChild(n)
-		decorator.NumberField(n, field)
-		return nil
-	case Select:
-		n := BuildSelectField(a, key, field)
-		wrapper.AppendChild(n)
-		decorator.SelectField(n, field)
-		return nil
-	case RadioList:
-		n := BuildRadioButtons(a, key, field, decorator)
-		wrapper.AppendChild(n)
-		return nil
+	if v.CanInterface() {
+		switch a := v.Interface().(type) {
+		case CustomEncoder:
+			return a.BuildFormElement(key, wrapper, field, decorator)
+		case time.Time:
+			n := BuildTimeField(a, key, field)
+			wrapper.AppendChild(n)
+			decorator.NumberField(n, field)
+			return nil
+		case Select:
+			n := BuildSelectField(a, key, field)
+			wrapper.AppendChild(n)
+			decorator.SelectField(n, field)
+			return nil
+		case RadioList:
+			n := BuildRadioButtons(a, key, field, decorator)
+			wrapper.AppendChild(n)
+			return nil
+		}
 	}
 
 	switch v.Kind() {
@@ -424,18 +432,22 @@ func BuildStringField(v reflect.Value, key string, field StructField) *html.Node
 		})
 	} else {
 		typField := func() string {
-			switch v.Interface().(type) {
-			case Password:
-				return "password"
-			case Email:
-				return "email"
-			case URL:
-				return "url"
-			case Tel:
-				return "tel"
-			default:
-				return "text"
+			if v.CanInterface() {
+				switch v.Interface().(type) {
+				case Password:
+					return "password"
+				case Email:
+					return "email"
+				case URL:
+					return "url"
+				case Tel:
+					return "tel"
+				default:
+					return "text"
+				}
 			}
+
+			return "text"
 		}
 
 		n = &html.Node{
