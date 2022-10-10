@@ -194,6 +194,10 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 			fieldType := val.Type().Field(i)
 			structField := StructField{StructField: fieldType}
 
+			if !structField.IsExported() {
+				continue
+			}
+
 			if structField.Hidden(h.showConditions) {
 				// hidden fields will not be in the form, so don't decode them.
 				continue
