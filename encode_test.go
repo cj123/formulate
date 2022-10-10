@@ -41,37 +41,23 @@ func (f FoodSelect) SelectMultiple() bool {
 	return true
 }
 
-func (f FoodSelect) checked(val string) *Condition {
-	for _, x := range f {
-		if x == val {
-			return NewCondition(true)
-		}
-	}
-
-	return NewCondition(false)
-}
-
 func (f FoodSelect) SelectOptions() []Option {
 	return []Option{
 		{
-			Value:   "burger",
-			Label:   "burger",
-			Checked: f.checked("burger"),
+			Value: "burger",
+			Label: "burger",
 		},
 		{
-			Value:   "pizza",
-			Label:   "pizza",
-			Checked: f.checked("pizza"),
+			Value: "pizza",
+			Label: "pizza",
 		},
 		{
-			Value:   "beans",
-			Label:   "beans",
-			Checked: f.checked("beans"),
+			Value: "beans",
+			Label: "beans",
 		},
 		{
-			Value:   "banana",
-			Label:   "banana",
-			Checked: f.checked("banana"),
+			Value: "banana",
+			Label: "banana",
 		},
 	}
 }
@@ -188,8 +174,99 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 	}
 
 	if err := m.Encode(&YourDetails{}); err != nil {
-		panic(err)
+		t.Error(err)
 	}
 
 	// fmt.Println(buf.String())
+
+	t.Run("Multi-select encoding set selected value automatically", func(t *testing.T) {
+		type test struct {
+			Food FoodSelect
+
+			Number numberIndexedSelect
+		}
+
+		s := &test{Food: FoodSelect{"burger", "pizza"}, Number: numberIndexedSelect{1, 2}}
+
+		buf := new(bytes.Buffer)
+		m := NewEncoder(buf, nil)
+		m.SetFormat(true)
+
+		if err := m.Encode(s); err != nil {
+			t.Error(err)
+		}
+
+		expected := `<div>
+  <fieldset>
+    <div>
+      <label for="Food">
+        Food
+      </label>
+      <div>
+        <select name="Food" id="Food" multiple="">
+          <option value="burger" selected="">
+            burger
+          </option>
+          <option value="pizza" selected="">
+            pizza
+          </option>
+          <option value="beans">
+            beans
+          </option>
+          <option value="banana">
+            banana
+          </option>
+        </select>
+        <div></div>
+      </div>
+    </div>
+    <div>
+      <label for="Number">
+        Number
+      </label>
+      <div>
+        <select name="Number" id="Number" multiple="">
+          <option value="0">
+            Zero
+          </option>
+          <option value="1" selected="">
+            One
+          </option>
+          <option value="2" selected="">
+            Two
+          </option>
+        </select>
+        <div></div>
+      </div>
+    </div>
+  </fieldset>
+</div>`
+
+		if expected != buf.String() {
+			t.Fail()
+		}
+	})
+}
+
+type numberIndexedSelect []int
+
+func (n numberIndexedSelect) SelectMultiple() bool {
+	return true
+}
+
+func (n numberIndexedSelect) SelectOptions() []Option {
+	return []Option{
+		{
+			Value: 0,
+			Label: "Zero",
+		},
+		{
+			Value: 1,
+			Label: "One",
+		},
+		{
+			Value: 2,
+			Label: "Two",
+		},
+	}
 }
