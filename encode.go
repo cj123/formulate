@@ -621,7 +621,24 @@ func BuildSelectField(s Select, key string) *html.Node {
 		checked := false
 
 		if opt.Checked == nil {
-			checked = toString(opt.Value) == toString(s)
+			v := reflect.ValueOf(s)
+			optValue := toString(opt.Value)
+
+			switch v.Kind() {
+			case reflect.Slice, reflect.Array:
+				for i := 0; i < v.Len(); i++ {
+					val := v.Index(i)
+
+					if val.CanInterface() {
+						if toString(val.Interface()) == optValue {
+							checked = true
+							break
+						}
+					}
+				}
+			default:
+				checked = toString(s) == optValue
+			}
 		} else {
 			checked = bool(*opt.Checked)
 		}
