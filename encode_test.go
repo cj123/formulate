@@ -158,7 +158,7 @@ func (c ContactMethod) RadioOptions() []Option {
 
 func TestHtmlEncoder_Encode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	m := NewEncoder(buf, nil)
+	m := NewEncoder(buf, nil, nil)
 	m.SetFormat(true)
 
 	if err := m.Encode(&YourDetails{

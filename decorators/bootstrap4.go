@@ -1,8 +1,9 @@
 package decorators
 
 import (
-	"github.com/cj123/formulate"
 	"golang.org/x/net/html"
+
+	"github.com/cj123/formulate"
 )
 
 // BootstrapDecorator implements a form layout using Bootstrap 4.

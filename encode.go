@@ -3,32 +3,38 @@ package formulate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gorilla/csrf"
 	"github.com/yosssi/gohtml"
 	"golang.org/x/net/html"
 )
 
-// HTMLEncoder is used to generate a HTML form from a given struct.
+// HTMLEncoder is used to generate an HTML form from a given struct.
 type HTMLEncoder struct {
 	showConditions
 
 	n *html.Node
 	w io.Writer
+	r *http.Request
 
 	decorator       Decorator
 	format          bool
 	validationStore ValidationStore
+
+	csrfProtection bool
 }
 
 // NewEncoder returns a HTMLEncoder which outputs to w. A Decorator can be passed to NewEncoder, which will then be used
-// to style the outputted HTML. If nil is passed in, no decorator is used, and a barebones HTML form will be returned.
-func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
+// to style the outputted HTML. If nil is passed in, no decorator is used, and a bare-bones HTML form will be returned.
+func NewEncoder(w io.Writer, r *http.Request, decorator Decorator) *HTMLEncoder {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "div",
@@ -42,6 +48,7 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 
 	return &HTMLEncoder{
 		w:               w,
+		r:               r,
 		n:               n,
 		decorator:       decorator,
 		showConditions:  make(showConditions),
@@ -53,6 +60,13 @@ func NewEncoder(w io.Writer, decorator Decorator) *HTMLEncoder {
 // Formatting is provided by the https://github.com/yosssi/gohtml package.
 func (h *HTMLEncoder) SetFormat(b bool) {
 	h.format = b
+}
+
+// SetCSRFProtection can be used to enable CSRF protection. The gorilla/csrf middleware must be loaded, or
+// the Encode call will fail. SetCSRFProtection must also be enabled on the HTTPDecoder.
+// Validation of CSRF tokens is handled by the gorilla/csrf middleware, not formulate.
+func (h *HTMLEncoder) SetCSRFProtection(enabled bool) {
+	h.csrfProtection = enabled
 }
 
 // SetValidationStore can be used to tell the HTMLEncoder about previous validation errors.
@@ -99,6 +113,12 @@ func (h *HTMLEncoder) Encode(i interface{}) (err error) {
 
 	if err := h.recurse(v, v.Type().String(), StructField{}, h.n); err != nil {
 		return err
+	}
+
+	if h.csrfProtection && h.r != nil {
+		if err := h.buildCSRFTokenField(h.n); err != nil {
+			return err
+		}
 	}
 
 	if !h.format {
@@ -267,7 +287,7 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 			decorator.NumberField(n, field)
 			return nil
 		case Select:
-			n := BuildSelectField(a, key, field)
+			n := BuildSelectField(a, key)
 			wrapper.AppendChild(n)
 			decorator.SelectField(n, field)
 			return nil
@@ -281,7 +301,7 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float64, reflect.Float32:
 		if _, ok := v.Interface().(BoolNumber); ok {
-			n := BuildBoolField(v, key, field)
+			n := BuildBoolField(v, key)
 			wrapper.AppendChild(n)
 			decorator.CheckboxField(n, field)
 		} else {
@@ -302,7 +322,7 @@ func BuildField(v reflect.Value, key string, field StructField, parent *html.Nod
 
 		return nil
 	case reflect.Bool:
-		n := BuildBoolField(v, key, field)
+		n := BuildBoolField(v, key)
 		wrapper.AppendChild(n)
 		decorator.CheckboxField(n, field)
 		return nil
@@ -498,7 +518,7 @@ func BuildStringField(v reflect.Value, key string, field StructField) *html.Node
 	return n
 }
 
-func BuildBoolField(v reflect.Value, key string, field StructField) *html.Node {
+func BuildBoolField(v reflect.Value, key string) *html.Node {
 	n := &html.Node{
 		Type: html.ElementNode,
 		Data: "input",
@@ -535,7 +555,7 @@ func BuildBoolField(v reflect.Value, key string, field StructField) *html.Node {
 	return n
 }
 
-func BuildSelectField(s Select, key string, field StructField) *html.Node {
+func BuildSelectField(s Select, key string) *html.Node {
 	sel := &html.Node{
 		Type: html.ElementNode,
 		Data: "select",
@@ -808,4 +828,27 @@ func toString(i interface{}) string {
 	default:
 		return fmt.Sprintf("%v", i)
 	}
+}
+
+var (
+	// ErrInvalidCSRFToken indicates that the csrf middleware has not been loaded in the handler chain.
+	ErrInvalidCSRFToken = errors.New("formulate: invalid CSRF token")
+)
+
+func (h *HTMLEncoder) buildCSRFTokenField(parent *html.Node) error {
+	token := csrf.TemplateField(h.r)
+
+	if token == "" {
+		return ErrInvalidCSRFToken
+	}
+
+	div := &html.Node{Type: html.ElementNode, Data: "div"}
+
+	if err := RenderHTMLToNode(token, div); err != nil {
+		return err
+	}
+
+	parent.AppendChild(div)
+
+	return nil
 }

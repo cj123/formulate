@@ -14,7 +14,6 @@ import (
 // HTMLEncoder.Encode and HTTPDecoder.Decode methods.
 // The Formulate method overrides any ValidationStore already set and uses a MemoryValidationStore instead.
 func Formulate(r *http.Request, data interface{}, encoderBuilder HTMLEncoderBuilder, decoderBuilder HTTPDecoderBuilder) (encodedForm template.HTML, passedValidation bool, err error) {
-	var decoder *HTTPDecoder
 	validationStore := NewMemoryValidationStore()
 
 	if r.Method == http.MethodPost {
@@ -22,7 +21,7 @@ func Formulate(r *http.Request, data interface{}, encoderBuilder HTMLEncoderBuil
 			return "", passedValidation, err
 		}
 
-		decoder = decoderBuilder(r, r.Form)
+		decoder := decoderBuilder(r, r.Form)
 		decoder.SetValidationStore(validationStore)
 
 		err := decoder.Decode(data)

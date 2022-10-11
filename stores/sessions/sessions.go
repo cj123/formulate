@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cj123/formulate"
 	"github.com/cj123/sessions"
+
+	"github.com/cj123/formulate"
 )
 
 func init() {

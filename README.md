@@ -16,7 +16,7 @@ type Address struct {
 }
 
 buildEncoder := func(r *http.Request, w io.Writer) *HTMLEncoder {
-	enc := NewEncoder(w, nil)
+	enc := NewEncoder(w, r, nil)
 	enc.SetFormat(true)
 
 	return enc
@@ -85,13 +85,13 @@ address := Address{
     AddressLine1: "Fake Street",
 }
 
-encoder := NewEncoder(buf, nil)
+encoder := NewEncoder(buf, nil, nil)
 encoder.SetFormat(true)
 
 if err := encoder.Encode(&address); err != nil {
     panic(err)
 }
-
+g
 fmt.Println(buf.String())
 ```
 

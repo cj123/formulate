@@ -174,7 +174,7 @@ func (sf StructField) Validators() []ValidatorKey {
 	return keys
 }
 
-// ShowConditionFunc is a function which determines whether or not to show a form element. See: HTMLEncoder.AddShowCondition
+// ShowConditionFunc is a function which determines whether to show a form element. See: HTMLEncoder.AddShowCondition
 type ShowConditionFunc func() bool
 
 type showConditions map[string]ShowConditionFunc
