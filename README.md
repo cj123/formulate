@@ -91,7 +91,7 @@ encoder.SetFormat(true)
 if err := encoder.Encode(&address); err != nil {
     panic(err)
 }
-g
+
 fmt.Println(buf.String())
 ```
 
