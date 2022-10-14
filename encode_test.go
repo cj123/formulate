@@ -2,10 +2,16 @@ package formulate
 
 import (
 	"bytes"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/csrf"
 )
 
 type YourDetails struct {
@@ -144,7 +150,7 @@ func (c ContactMethod) RadioOptions() []Option {
 
 func TestHtmlEncoder_Encode(t *testing.T) {
 	buf := new(bytes.Buffer)
-	m := NewEncoder(buf, nil)
+	m := NewEncoder(buf, nil, nil)
 	m.SetFormat(true)
 
 	if err := m.Encode(&YourDetails{
@@ -177,8 +183,6 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 		t.Error(err)
 	}
 
-	// fmt.Println(buf.String())
-
 	t.Run("Multi-select encoding set selected value automatically", func(t *testing.T) {
 		type test struct {
 			Food FoodSelect
@@ -189,7 +193,7 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 		s := &test{Food: FoodSelect{"burger", "pizza"}, Number: numberIndexedSelect{1, 2}}
 
 		buf := new(bytes.Buffer)
-		m := NewEncoder(buf, nil)
+		m := NewEncoder(buf, nil, nil)
 		m.SetFormat(true)
 
 		if err := m.Encode(s); err != nil {
@@ -244,6 +248,45 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 
 		if expected != buf.String() {
 			t.Fail()
+		}
+	})
+
+	t.Run("Encoder adds CSRF protection input to form if enabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		p := csrf.Protect([]byte(""))
+
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			s := struct{}{}
+
+			m := NewEncoder(w, r, nil)
+			m.SetFormat(true)
+			m.SetCSRFProtection(true)
+
+			if err := m.Encode(s); err != nil {
+				t.Error(err)
+			}
+		})
+
+		srv := httptest.NewServer(p(mux))
+
+		defer srv.Close()
+
+		resp, err := http.Get(srv.URL)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+		defer resp.Body.Close()
+
+		b, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			t.Error(err)
+		}
+
+		if !strings.Contains(string(b), `<input type="hidden" name="gorilla.csrf.Token"`) {
+			t.Error("Expected gorilla CSRF token input in HTTP response")
 		}
 	})
 }
