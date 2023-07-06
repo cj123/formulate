@@ -162,11 +162,11 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 
 			return nil
 		case time.Time:
-			formValue := PopFormValue(h.form, FormElementName(key))
+			formValue, ok := PopFormValue(h.form, FormElementName(key))
 
 			var t time.Time
 
-			if formValue != "" {
+			if ok && formValue != "" {
 				var err error
 
 				t, err = time.Parse(timeFormat, formValue)
@@ -230,9 +230,9 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		return nil
 	}
 
-	formValue := PopFormValue(h.form, FormElementName(key))
+	formValue, ok := PopFormValue(h.form, FormElementName(key))
 
-	if formValue == "" {
+	if !ok {
 		// below we are dealing with concrete types that do not call decode recursively.
 		// if there are no values in the form for these types, do not decode them. this
 		// prevents 'default' values from being overwritten with empty values.
@@ -375,7 +375,7 @@ func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators
 }
 
 // PopFormValue takes a value from the form and removes it so that it is not parsed again.
-func PopFormValue(form url.Values, key string) string {
+func PopFormValue(form url.Values, key string) (string, bool) {
 	if formValues, ok := form[key]; ok && len(formValues) > 0 {
 		if len(form[key]) > 1 {
 			form[key] = form[key][1:]
@@ -383,8 +383,8 @@ func PopFormValue(form url.Values, key string) string {
 			form[key] = []string{}
 		}
 
-		return formValues[0]
+		return formValues[0], true
 	}
 
-	return ""
+	return "", false
 }
