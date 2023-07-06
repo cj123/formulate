@@ -28,6 +28,10 @@ type CustomDecoder interface {
 	// and the values for that specific element. It must return a reflect.Value of equal type to the
 	// type which is implementing the CustomDecoder interface. If err != nil, the error will propagate
 	// back through to the Decode() call.
+	//
+	// By default, primitive types supported by formulate will remove the values from the form as the form is decoded.
+	// CustomDecoders may replicate this behaviour if needed, but formulate will not do it automatically.
+	// See PopFormValue and FormElementName for more information.
 	DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error)
 }
 
@@ -88,8 +92,8 @@ type RadioList interface {
 type BoolNumber int
 
 // DecodeFormValue implements the CustomDecoder interface.
-func (bn BoolNumber) DecodeFormValue(form url.Values, name string, values []string) (reflect.Value, error) {
-	val := values[0]
+func (bn BoolNumber) DecodeFormValue(form url.Values, name string, _ []string) (reflect.Value, error) {
+	val := PopFormValue(form, FormElementName(name))
 
 	if val == "on" || val == "1" {
 		return reflect.ValueOf(BoolNumber(1)), nil
@@ -99,8 +103,8 @@ func (bn BoolNumber) DecodeFormValue(form url.Values, name string, values []stri
 }
 
 // Bool returns true if the underlying value is 1.
-func (bn *BoolNumber) Bool() bool {
-	return *bn == 1
+func (bn BoolNumber) Bool() bool {
+	return bn == 1
 }
 
 // Raw is byte data which should be rendered as a string inside a textarea.

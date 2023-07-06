@@ -122,7 +122,7 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 }
 
 func (h *HTTPDecoder) getFormValues(key string) []string {
-	key = formElementName(key)
+	key = FormElementName(key)
 
 	var vals []string
 
@@ -162,14 +162,14 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 
 			return nil
 		case time.Time:
-			values := h.getFormValues(key)
+			formValue := PopFormValue(h.form, FormElementName(key))
 
 			var t time.Time
 
-			if len(values) > 0 {
+			if formValue != "" {
 				var err error
 
-				t, err = time.Parse(timeFormat, values[0])
+				t, err = time.Parse(timeFormat, formValue)
 
 				if err != nil {
 					return err
@@ -230,16 +230,14 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		return nil
 	}
 
-	values := h.getFormValues(key)
+	formValue := PopFormValue(h.form, FormElementName(key))
 
-	if len(values) == 0 {
+	if formValue == "" {
 		// below we are dealing with concrete types that do not call decode recursively.
 		// if there are no values in the form for these types, do not decode them. this
 		// prevents 'default' values from being overwritten with empty values.
 		return nil
 	}
-
-	formValue := values[0]
 
 	switch val.Kind() {
 	case reflect.String:
@@ -360,7 +358,7 @@ func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators
 		if !valid {
 			h.numValidationErrors++
 
-			err := h.validationStore.AddValidationError(formElementName(key), ValidationError{
+			err := h.validationStore.AddValidationError(FormElementName(key), ValidationError{
 				Value: value,
 				Error: message,
 			})
@@ -374,4 +372,19 @@ func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators
 	}
 
 	return ok || h.setValueOnValidationError, nil
+}
+
+// PopFormValue takes a value from the form and removes it so that it is not parsed again.
+func PopFormValue(form url.Values, key string) string {
+	if formValues, ok := form[key]; ok && len(formValues) > 0 {
+		if len(form[key]) > 1 {
+			form[key] = form[key][1:]
+		} else {
+			form[key] = []string{}
+		}
+
+		return formValues[0]
+	}
+
+	return ""
 }
