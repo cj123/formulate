@@ -192,6 +192,26 @@ It spans multiple lines`
 
 		assertEquals(t, v.Value, "this is a string")
 	})
+
+	t.Run("Decode where empty value overwrites already set value in struct", func(t *testing.T) {
+		type testData struct {
+			Value string
+		}
+
+		x := testData{Value: "this is a string"}
+
+		dec := NewDecoder(url.Values{"Value": []string{""}})
+
+		if err := dec.Decode(&x); err != nil {
+			t.Error(err)
+			return
+		}
+
+		if x.Value != "" {
+			t.Fail()
+			return
+		}
+	})
 }
 
 type customDecoderTest []int
