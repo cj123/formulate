@@ -146,7 +146,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 	if v.CanInterface() {
 		switch v.Interface().(type) {
 		case time.Time, Select, RadioList, CustomEncoder:
-			return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
+			return BuildField(v, FormElementName(key), field, parent, h.decorator, h.showConditions)
 		}
 	}
 
@@ -174,7 +174,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 			nextKey := key + fieldSeparator + v.Type().Field(i).Name
 
-			validationErrors, err := h.validationStore.GetValidationErrors(formElementName(nextKey))
+			validationErrors, err := h.validationStore.GetValidationErrors(FormElementName(nextKey))
 
 			if err != nil {
 				return err
@@ -208,7 +208,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
-		return BuildField(v, formElementName(key), field, parent, h.decorator, h.showConditions)
+		return BuildField(v, FormElementName(key), field, parent, h.decorator, h.showConditions)
 	}
 }
 
@@ -763,8 +763,15 @@ func BuildRadioButtons(r RadioList, key string, field StructField, decorator Dec
 
 const fieldSeparator = "."
 
-func formElementName(label string) string {
-	return strings.Join(strings.Split(label, fieldSeparator)[2:], fieldSeparator)
+// FormElementName returns the name of the form element within the form, removing the package path and base struct name.
+func FormElementName(key string) string {
+	keySplit := strings.Split(key, fieldSeparator)
+
+	if len(keySplit) > 2 {
+		return strings.Join(keySplit[2:], fieldSeparator)
+	}
+
+	return key
 }
 
 func BuildLabel(label string, parent *html.Node, field StructField, decorator Decorator) {
