@@ -515,6 +515,20 @@ func BuildStringField(v reflect.Value, key string, field StructField) *html.Node
 		})
 	}
 
+	if field.HasMin() {
+		n.Attr = append(n.Attr, html.Attribute{
+			Key: "minlength",
+			Val: field.Min(),
+		})
+	}
+
+	if field.HasMax() {
+		n.Attr = append(n.Attr, html.Attribute{
+			Key: "maxlength",
+			Val: field.Max(),
+		})
+	}
+
 	return n
 }
 
