@@ -17,8 +17,8 @@ import (
 //     If "fieldset" is used, anonymous structs will be built as fieldsets too, if their name is also set.
 //   - type (e.g. type:"tel", type:"hidden") - sets the HTML input "type" attribute. type:"hidden" will be rendered without labels and help text.
 //   - elem (elem:"textarea") - used to specify that a text input should use a <textarea> rather than an input field.
-//   - min (e.g. min:"0") - minimum value for number and text inputs
-//   - max (e.g. max:"10") - maximum value for number and text inputs
+//   - min (e.g. min:"0") - minimum value for number inputs, minimum length for text inputs
+//   - max (e.g. max:"10") - maximum value for number inputs, maximum length for text inputs
 //   - step (e.g. step:"0.1") - step size for number inputs
 //   - pattern (e.g. pattern:"[a-z]+" - regex pattern for text inputs
 //   - required (true/false) - adds the required attribute to the element.
