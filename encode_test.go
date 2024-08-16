@@ -32,6 +32,9 @@ type YourDetails struct {
 	Checkbox        bool
 	IgnoredField    string `show:"-"`
 	HiddenInput     string `type:"hidden"`
+	EmptyStruct     struct {
+		Foo string `show:"-"`
+	}
 
 	Address *Address
 
@@ -287,6 +290,53 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 
 		if !strings.Contains(string(b), `<input type="hidden" name="gorilla.csrf.Token"`) {
 			t.Error("Expected gorilla CSRF token input in HTTP response")
+		}
+	})
+
+	t.Run("Encoder with Show Conditions", func(t *testing.T) {
+		type test struct {
+			Name                    string
+			AddressLine1            string `show:"visible"`
+			AddressLine2            string `show:"visible,invisible"`
+			PostCode                string `show:"invisible"`
+			HiddenByGlobalCondition int
+		}
+
+		s := &test{}
+
+		buf := new(bytes.Buffer)
+		m := NewEncoder(buf, nil, nil)
+		m.SetFormat(true)
+		m.AddShowCondition("visible", func(field StructField) bool {
+			return true
+		})
+		m.AddShowCondition("invisible", func(field StructField) bool {
+			return false
+		})
+		m.AddGlobalShowCondition(func(field StructField) bool {
+			return field.Name != "HiddenByGlobalCondition"
+		})
+
+		if err := m.Encode(s); err != nil {
+			t.Error(err)
+		}
+
+		b := buf.String()
+
+		if !strings.Contains(b, "AddressLine1") {
+			t.Fail()
+		}
+
+		if strings.Contains(b, "PostCode") {
+			t.Fail()
+		}
+
+		if strings.Contains(b, "AddressLine2") {
+			t.Fail()
+		}
+
+		if strings.Contains(b, "HiddenByGlobalCondition") {
+			t.Fail()
 		}
 	})
 }

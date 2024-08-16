@@ -61,16 +61,31 @@ func (sf StructField) GetHelpText() string {
 }
 
 // Hidden determines if a StructField is hidden based on the showConditions.
-func (sf StructField) Hidden(showConditions map[string]ShowConditionFunc) bool {
+// If multiple show conditions are specified, they must all pass for the field to be visible.
+func (sf StructField) Hidden(showConditions ShowConditions) bool {
 	showTag := sf.Tag.Get("show")
 
-	for _, tag := range strings.Split(showTag, ",") {
-		if conditionFunc, ok := showConditions[tag]; ok {
-			return !conditionFunc()
+	if showTag == "-" {
+		return true
+	}
+
+	visible := true
+
+	showTags := strings.Split(showTag, ",")
+
+	if _, ok := showConditions[showConditionAllFields]; ok {
+		showTags = append(showTags, showConditionAllFields)
+	}
+
+	for _, tag := range showTags {
+		if conditionFuncs, ok := showConditions[tag]; ok {
+			for _, fn := range conditionFuncs {
+				visible = visible && fn(sf)
+			}
 		}
 	}
 
-	return showTag == "-"
+	return !visible
 }
 
 func camelCase(s string) string {
@@ -175,9 +190,9 @@ func (sf StructField) Validators() []ValidatorKey {
 }
 
 // ShowConditionFunc is a function which determines whether to show a form element. See: HTMLEncoder.AddShowCondition
-type ShowConditionFunc func() bool
+type ShowConditionFunc func(field StructField) bool
 
-type showConditions map[string]ShowConditionFunc
+type ShowConditions map[string][]ShowConditionFunc
 
 // AddShowCondition allows you to determine visibility of certain form elements.
 // For example, given the following struct:
@@ -189,12 +204,23 @@ type showConditions map[string]ShowConditionFunc
 //
 // If you wanted to make the SecretOption field only show to admins, you would call AddShowCondition as follows:
 //
-//	AddShowCondition("adminOnly", func() bool {
+//	AddShowCondition("adminOnly", func(field StructField) bool {
 //	   // some code that determines if we are 'admin'
 //	})
 //
-// You can add multiple ShowConditions, but they must have different keys.
+// You can add multiple ShowConditions for the same key.
+//
+// It is also possible to add ShowConditionFuncs to be used on every StructField. See AddGlobalShowCondition.
+//
 // Note: ShowConditions should be added to both the Encoder and Decoder.
-func (s showConditions) AddShowCondition(key string, fn ShowConditionFunc) {
-	s[key] = fn
+func (s ShowConditions) AddShowCondition(key string, fn ShowConditionFunc) {
+	s[key] = append(s[key], fn)
 }
+
+// AddGlobalShowCondition adds a ShowConditionFunc to be called on all StructFields.
+func (s ShowConditions) AddGlobalShowCondition(fn ShowConditionFunc) {
+	s[showConditionAllFields] = append(s[showConditionAllFields], fn)
+}
+
+// showConditionAllFields is a special key for a ShowConditionFunc that is used on all fields.
+const showConditionAllFields = "*"

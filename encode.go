@@ -19,7 +19,7 @@ import (
 
 // HTMLEncoder is used to generate an HTML form from a given struct.
 type HTMLEncoder struct {
-	showConditions
+	ShowConditions
 
 	n *html.Node
 	w io.Writer
@@ -51,7 +51,7 @@ func NewEncoder(w io.Writer, r *http.Request, decorator Decorator) *HTMLEncoder 
 		r:               r,
 		n:               n,
 		decorator:       decorator,
-		showConditions:  make(showConditions),
+		ShowConditions:  make(ShowConditions),
 		validationStore: NewMemoryValidationStore(),
 	}
 }
@@ -146,7 +146,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 	if v.CanInterface() {
 		switch v.Interface().(type) {
 		case time.Time, Select, RadioList, CustomEncoder:
-			return BuildField(v, FormElementName(key), field, parent, h.decorator, h.showConditions)
+			return BuildField(v, FormElementName(key), field, parent, h.decorator, h.ShowConditions)
 		}
 	}
 
@@ -160,14 +160,11 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 	case reflect.Interface:
 		return h.recurse(v.Elem(), key, field, parent)
 	case reflect.Struct:
-		if field.Hidden(h.showConditions) {
+		if field.Hidden(h.ShowConditions) {
 			return nil
 		}
 
-		if field.BuildFieldset() {
-			// anonymous structs use their parent's fieldset
-			parent = h.buildFieldSet(field, parent)
-		}
+		container := &html.Node{Type: html.ElementNode, Data: "div"}
 
 		for i := 0; i < v.NumField(); i++ {
 			structField := v.Type().Field(i)
@@ -187,11 +184,23 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 					StructField:      structField,
 					ValidationErrors: validationErrors,
 				},
-				parent,
+				container,
 			)
 
 			if err != nil {
 				return err
+			}
+		}
+
+		if container.FirstChild != nil {
+			// only build wrappers or add children if elements were built into the container
+			// i.e. if all fields are hidden in this struct, don't display any furniture for it.
+			if field.BuildFieldset() {
+				fieldset := h.buildFieldSet(field, parent)
+
+				moveNodeChildren(container, fieldset)
+			} else {
+				moveNodeChildren(container, parent)
 			}
 		}
 
@@ -208,7 +217,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
-		return BuildField(v, FormElementName(key), field, parent, h.decorator, h.showConditions)
+		return BuildField(v, FormElementName(key), field, parent, h.decorator, h.ShowConditions)
 	}
 }
 
@@ -240,7 +249,7 @@ func (h *HTMLEncoder) buildFieldSet(field StructField, parent *html.Node) *html.
 	return n
 }
 
-func BuildField(v reflect.Value, key string, field StructField, parent *html.Node, decorator Decorator, showConditions map[string]ShowConditionFunc) error {
+func BuildField(v reflect.Value, key string, field StructField, parent *html.Node, decorator Decorator, showConditions ShowConditions) error {
 	if !v.IsValid() || field.Hidden(showConditions) {
 		return nil
 	}
