@@ -9,7 +9,6 @@ import (
 
 // RenderHTMLToNode renders a html string into a parent *html.Node.
 // The parent node is emptied before the data is rendered into it.
-// The 'data' argument must be wrapped in a single HTML node, usually a <div>.
 func RenderHTMLToNode(data template.HTML, parent *html.Node) error {
 	n, err := html.Parse(strings.NewReader(string(data)))
 
@@ -23,10 +22,7 @@ func RenderHTMLToNode(data template.HTML, parent *html.Node) error {
 		parent.RemoveChild(c)
 	}
 
-	for c := body.FirstChild; c != nil; c = c.NextSibling {
-		body.RemoveChild(c)
-		parent.AppendChild(c)
-	}
+	moveNodeChildren(body, parent)
 
 	return nil
 }
@@ -48,4 +44,16 @@ func getBody(node *html.Node) *html.Node {
 	f(node)
 
 	return body
+}
+
+func moveNodeChildren(from, to *html.Node) {
+	c := from.FirstChild
+
+	for c != nil {
+		x := c
+		c = c.NextSibling
+
+		from.RemoveChild(x)
+		to.AppendChild(x)
+	}
 }

@@ -105,6 +105,10 @@ func ExampleNewDecoder() {
 		Postcode        string
 		TelephoneNumber Tel
 		CountryCode     string `pattern:"[A-Za-z]{3}" validators:"countryCode"`
+
+		EmptyStruct struct {
+			Foo string `show:"-"`
+		}
 	}
 
 	// formValues - usually these would come from *http.Request.Form!
