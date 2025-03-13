@@ -7,5 +7,5 @@ require (
 	github.com/fatih/camelcase v1.0.0
 	github.com/gorilla/csrf v1.7.1
 	github.com/yosssi/gohtml v0.0.0-20200519115854-476f5b4b8047
-	golang.org/x/net v0.7.0
+	golang.org/x/net v0.36.0
 )
