@@ -2,6 +2,7 @@ package formulate
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -256,7 +257,15 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 
 	t.Run("Encoder adds CSRF protection input to form if enabled", func(t *testing.T) {
 		mux := http.NewServeMux()
-		p := csrf.Protect([]byte(""))
+
+		key := make([]byte, 32)
+
+		if _, err := rand.Read(key); err != nil {
+			t.Error(err)
+			return
+		}
+
+		p := csrf.Protect(key)
 
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			s := struct{}{}
