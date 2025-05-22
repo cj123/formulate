@@ -25,9 +25,10 @@ type HTMLEncoder struct {
 	w io.Writer
 	r *http.Request
 
-	decorator       Decorator
-	format          bool
-	validationStore ValidationStore
+	decorator         Decorator
+	format            bool
+	validationStore   ValidationStore
+	elementNamePrefix string
 
 	csrfProtection bool
 }
@@ -69,6 +70,11 @@ func (h *HTMLEncoder) SetCSRFProtection(enabled bool) {
 	h.csrfProtection = enabled
 }
 
+// SetElementNamePrefix allows a prefix to be specified for all element names.
+func (h *HTMLEncoder) SetElementNamePrefix(prefix string) {
+	h.elementNamePrefix = prefix
+}
+
 // SetValidationStore can be used to tell the HTMLEncoder about previous validation errors.
 func (h *HTMLEncoder) SetValidationStore(v ValidationStore) {
 	if v == nil {
@@ -76,6 +82,11 @@ func (h *HTMLEncoder) SetValidationStore(v ValidationStore) {
 	}
 
 	h.validationStore = v
+}
+
+// GetValidationStore returns the current validation store.
+func (h *HTMLEncoder) GetValidationStore() ValidationStore {
+	return h.validationStore
 }
 
 func errorIncorrectValue(t reflect.Type) error {
@@ -146,7 +157,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 	if v.CanInterface() {
 		switch v.Interface().(type) {
 		case time.Time, Select, RadioList, CustomEncoder:
-			return BuildField(v, FormElementName(key), field, parent, h.decorator, h.ShowConditions)
+			return BuildField(v, FormElementName(h.elementNamePrefix, key), field, parent, h.decorator, h.ShowConditions)
 		}
 	}
 
@@ -171,7 +182,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 			nextKey := key + fieldSeparator + v.Type().Field(i).Name
 
-			validationErrors, err := h.validationStore.GetValidationErrors(FormElementName(nextKey))
+			validationErrors, err := h.validationStore.GetValidationErrors(FormElementName(h.elementNamePrefix, nextKey))
 
 			if err != nil {
 				return err
@@ -217,7 +228,7 @@ func (h *HTMLEncoder) recurse(v reflect.Value, key string, field StructField, pa
 
 		return h.recurse(reflect.ValueOf(Raw(buf.Bytes())), key, field, parent)
 	default:
-		return BuildField(v, FormElementName(key), field, parent, h.decorator, h.ShowConditions)
+		return BuildField(v, FormElementName(h.elementNamePrefix, key), field, parent, h.decorator, h.ShowConditions)
 	}
 }
 
@@ -787,14 +798,14 @@ func BuildRadioButtons(r RadioList, key string, field StructField, decorator Dec
 const fieldSeparator = "."
 
 // FormElementName returns the name of the form element within the form, removing the package path and base struct name.
-func FormElementName(key string) string {
+func FormElementName(prefix string, key string) string {
 	keySplit := strings.Split(key, fieldSeparator)
 
 	if len(keySplit) > 2 {
-		return strings.Join(keySplit[2:], fieldSeparator)
+		return prefix + strings.Join(keySplit[2:], fieldSeparator)
 	}
 
-	return key
+	return prefix + key
 }
 
 func BuildLabel(label string, parent *html.Node, field StructField, decorator Decorator) {
