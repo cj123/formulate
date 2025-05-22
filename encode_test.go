@@ -156,6 +156,7 @@ func TestHtmlEncoder_Encode(t *testing.T) {
 	buf := new(bytes.Buffer)
 	m := NewEncoder(buf, nil, nil)
 	m.SetFormat(true)
+	m.SetElementNamePrefix("EncoderPrefix")
 
 	if err := m.Encode(&YourDetails{
 		Name:           "Jane Doe",

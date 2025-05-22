@@ -18,6 +18,7 @@ type HTTPDecoder struct {
 	validationStore           ValidationStore
 	setValueOnValidationError bool
 	numValidationErrors       int
+	elementNamePrefix         string
 }
 
 // NewDecoder creates a new HTTPDecoder.
@@ -38,6 +39,10 @@ func (h *HTTPDecoder) SetValidationStore(v ValidationStore) {
 	}
 
 	h.validationStore = v
+}
+
+func (h *HTTPDecoder) SetElementNamePrefix(prefix string) {
+	h.elementNamePrefix = prefix
 }
 
 // SetValueOnValidationError indicates whether a form value should be set in the form if there was a validation error on that value.
@@ -122,7 +127,7 @@ func (h *HTTPDecoder) Decode(data interface{}) error {
 }
 
 func (h *HTTPDecoder) getFormValues(key string) []string {
-	key = FormElementName(key)
+	key = FormElementName(h.elementNamePrefix, key)
 
 	var vals []string
 
@@ -137,7 +142,7 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 	if val.CanInterface() {
 		switch a := val.Interface().(type) {
 		case CustomDecoder:
-			decodedFormVal, err := a.DecodeFormValue(h.form, key, h.getFormValues(key))
+			decodedFormVal, err := a.DecodeFormValue(h.form, FormElementName(h.elementNamePrefix, key), h.getFormValues(key))
 
 			if err != nil {
 				return err
@@ -162,7 +167,7 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 
 			return nil
 		case time.Time:
-			formValue, ok := PopFormValue(h.form, FormElementName(key))
+			formValue, ok := PopFormValue(h.form, FormElementName(h.elementNamePrefix, key))
 
 			var t time.Time
 
@@ -230,7 +235,7 @@ func (h *HTTPDecoder) decode(val reflect.Value, key string, validators []Validat
 		return nil
 	}
 
-	formValue, ok := PopFormValue(h.form, FormElementName(key))
+	formValue, ok := PopFormValue(h.form, FormElementName(h.elementNamePrefix, key))
 
 	if !ok {
 		// below we are dealing with concrete types that do not call decode recursively.
@@ -358,7 +363,7 @@ func (h *HTTPDecoder) passedValidation(key string, value interface{}, validators
 		if !valid {
 			h.numValidationErrors++
 
-			err := h.validationStore.AddValidationError(FormElementName(key), ValidationError{
+			err := h.validationStore.AddValidationError(FormElementName(h.elementNamePrefix, key), ValidationError{
 				Value: value,
 				Error: message,
 			})
