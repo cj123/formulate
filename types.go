@@ -93,7 +93,7 @@ type BoolNumber int
 
 // DecodeFormValue implements the CustomDecoder interface.
 func (bn BoolNumber) DecodeFormValue(form url.Values, name string, _ []string) (reflect.Value, error) {
-	val, _ := PopFormValue(form, FormElementName(name))
+	val, _ := PopFormValue(form, name)
 
 	if val == "on" || val == "1" {
 		return reflect.ValueOf(BoolNumber(1)), nil
